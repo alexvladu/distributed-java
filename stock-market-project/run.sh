@@ -3,11 +3,19 @@ set -euo pipefail
 
 PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 KAFKA_COMPOSE_FILE="$PROJECT_DIR/docker-compose.yml"
+RUN_LOCK_FILE="/tmp/stock-market-project.run.lock"
+exec 9>"$RUN_LOCK_FILE"
+if ! flock -n 9; then
+    echo "Another run.sh instance is already running." >&2
+    echo "Stop it with Ctrl+C in its terminal before starting another one." >&2
+    exit 1
+fi
+
 export CATALINA_HOME="$(brew --prefix tomcat)/libexec"
 export CATALINA_BASE="/home/alex/sisteme-distribuite/servere/tomcat-base"
 export JETTY_HOME="$(brew --prefix jetty)/libexec"
 export JETTY_BASE="/home/alex/sisteme-distribuite/servere/jetty-base"
-export ACCOUNT_DATA_FILE="$PROJECT_DIR/asset-management-service/data/account.json"
+export ACCOUNT_DATA_FILE="$PROJECT_DIR/asset-management-service/src/main/resources/data/account.json"
 TOMCAT_LOG="/tmp/asset-management-service-tomcat.log"
 JETTY_LOG="/tmp/stock-market-service-jetty.log"
 

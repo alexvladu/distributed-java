@@ -5,37 +5,89 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Stock Portfolio</title>
     <style>
-        :root { color-scheme: light; }
-        body { background: #f6f8fb; color: #172033; font-family: sans-serif; margin: 0; }
-        main { margin: 0 auto; max-width: 70rem; padding: 4rem 1.5rem; }
-        .eyebrow { color: #1769e0; font-weight: bold; letter-spacing: .08em; text-transform: uppercase; }
-        h1 { font-size: clamp(2.2rem, 6vw, 4rem); line-height: 1.05; margin: .75rem 0 1rem; }
-        .intro { color: #526078; font-size: 1.15rem; max-width: 42rem; }
-        .links { display: grid; gap: 1rem; grid-template-columns: repeat(2, minmax(0, 1fr)); margin-top: 2.5rem; }
-        .card { background: white; border: 1px solid #dfe5ef; border-radius: .75rem; color: inherit;
-                display: block; padding: 1.5rem; text-decoration: none; }
-        .card:hover { border-color: #1769e0; box-shadow: 0 .5rem 1.5rem #17203314; }
-        .card h2 { margin: 0 0 .5rem; }
-        .card p { color: #526078; margin: 0; }
-        @media (max-width: 600px) { .links { grid-template-columns: 1fr; } }
+        :root { --bg:#f3f5f8; --surface:#fff; --ink:#0f1b2d; --muted:#5d6b80; --line:#dde3ea; --head:#eef1f5;
+                --accent:#1458c4; --ok:#0b7a5a; --bad:#b3261e; }
+        * { box-sizing: border-box; }
+        body { background: var(--bg); color: var(--ink); margin: 0;
+               font: 16px/1.5 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+        a { color: var(--accent); }
+        :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+        .top { background: var(--surface); border-bottom: 1px solid var(--line); }
+        .bar { align-items: center; display: flex; gap: .25rem; height: 3.5rem; margin: 0 auto; max-width: 72rem; padding: 0 1rem; }
+        .brand { color: var(--ink); font-weight: 700; margin-right: auto; text-decoration: none; }
+        .bar nav a { border-radius: .4rem; color: var(--muted); font-weight: 600; padding: .4rem .7rem; text-decoration: none; }
+        .bar nav a:hover { color: var(--ink); }
+        .bar nav a[aria-current=page] { background: var(--bg); color: var(--ink); }
+        main { margin: 0 auto; max-width: 72rem; padding: 2rem 1rem 4rem; }
+        h1 { font-size: 1.75rem; letter-spacing: -.02em; line-height: 1.2; margin: 0 0 .25rem; }
+        h2 { font-size: 1.15rem; margin: 2.5rem 0 .75rem; }
+        .lede { color: var(--muted); margin: 0; }
+        .panel { background: var(--surface); border: 1px solid var(--line); border-radius: .75rem; overflow-x: auto; }
+        table { border-collapse: collapse; width: 100%; }
+        th, td { border-bottom: 1px solid var(--line); padding: .75rem 1rem; text-align: left; white-space: nowrap; }
+        tr:last-child td { border-bottom: 0; }
+        th { background: var(--head); color: var(--muted); font-size: .85rem; font-weight: 600; }
+        .num, th.num { font-variant-numeric: tabular-nums; text-align: right; }
+        .sym { font-weight: 700; }
+        .sub { color: var(--muted); font-weight: 400; }
+        .empty { color: var(--muted); padding: 2rem 1rem; text-align: center; }
+        input[type=number], input[type=search] { background: #fff; border: 1px solid #c3ccd8; border-radius: .4rem; font: inherit; padding: .4rem .6rem; }
+        input[type=number] { text-align: right; width: 7rem; }
+        .btn { background: var(--accent); border: 1px solid var(--accent); border-radius: .4rem; color: #fff; cursor: pointer;
+               font: inherit; font-weight: 600; padding: .4rem .9rem; }
+        .btn:hover { filter: brightness(.92); }
+        .btn.sell { background: #fff; border-color: var(--bad); color: var(--bad); margin-left: .4rem; }
+        .btn.sell:hover { background: var(--bad); color: #fff; filter: none; }
+        .status { align-items: center; color: var(--muted); display: flex; gap: .5rem; margin: 1rem 0; min-height: 1.5rem; }
+        .status::before { background: var(--ok); border-radius: 50%; content: ""; height: .5rem; width: .5rem; }
+        .status:empty::before { display: none; }
+        .status.error { color: var(--bad); }
+        .status.error::before { background: var(--bad); }
+        @media (prefers-reduced-motion: no-preference) { .btn { transition: background .15s, color .15s; } }
+        .hero { align-items: center; display: grid; gap: 2rem; grid-template-columns: 1.2fr .8fr; padding: 3rem 0 2.5rem; }
+        .hero h1 { font-size: clamp(2.2rem, 6vw, 3.8rem); letter-spacing: -.03em; line-height: 1.05; margin-bottom: 1rem; }
+        .hero .lede { font-size: 1.15rem; max-width: 34rem; }
+        .spark { color: var(--ok); width: 100%; }
+        .links { display: grid; gap: 1rem; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        .card { background: var(--surface); border: 1px solid var(--line); border-radius: .75rem; color: inherit; display: block;
+                padding: 1.5rem; text-decoration: none; }
+        .card:hover { border-color: var(--accent); }
+        .card h2 { font-size: 1.25rem; margin: 0 0 .35rem; }
+        .card p { color: var(--muted); margin: 0; }
+        @media (max-width: 700px) { .hero, .links { grid-template-columns: 1fr; } .spark { display: none; } }
     </style>
 </head>
 <body>
+<header class="top">
+    <div class="bar">
+        <a class="brand" href="/">Stock Portfolio</a>
+        <nav aria-label="Main">
+            <a href="/" aria-current="page">Home</a>
+            <a href="/live-market">Live market</a>
+            <a href="/assets">Assets</a>
+        </nav>
+    </div>
+</header>
 <main>
-    <div class="eyebrow">Stock Portfolio</div>
-    <h1>Manage your portfolio in real time.</h1>
-    <p class="intro">
-        Follow Kafka-powered market updates, search available stocks, and buy
-        fractional shares using your live USD balance.
-    </p>
+    <section class="hero">
+        <div>
+            <h1>Trade and track your portfolio as prices move.</h1>
+            <p class="lede">Watch live market prices, search for stocks, and buy fractional shares with your USD balance.</p>
+        </div>
+        <svg class="spark" viewBox="0 0 240 120" fill="none" stroke="currentColor" stroke-width="4"
+             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M6 96 L40 78 L72 88 L108 52 L140 64 L176 30 L206 40 L234 14"/>
+            <circle cx="234" cy="14" r="7" fill="currentColor" stroke="none"/>
+        </svg>
+    </section>
     <section class="links" aria-label="Application areas">
         <a class="card" href="/live-market">
             <h2>Live market</h2>
-            <p>Search stocks, watch live prices, and buy fractional shares.</p>
+            <p>Search stocks, watch prices update, and buy fractional shares.</p>
         </a>
         <a class="card" href="/assets">
             <h2>Assets</h2>
-            <p>View the available asset inventory.</p>
+            <p>See your cash, holdings, and total balance in one place.</p>
         </a>
     </section>
 </main>

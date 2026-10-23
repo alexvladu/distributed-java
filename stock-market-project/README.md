@@ -33,6 +33,12 @@ asset-management service consumes the events and logs the received updates.
 Open <http://localhost:8081/live-market> to search received stocks, view the
 live USD account balance, and buy fractional shares. New accounts start with
 $1,000.00 and no holdings; account state is stored locally in
-`asset-management-service/data/account.json`.
+`asset-management-service/src/main/resources/data/account.json`.
 
 `run.sh` stops both servers when you press `Ctrl+C`.
+
+To stop the services by port from another terminal, run:
+
+```bash
+./stop.sh
+```

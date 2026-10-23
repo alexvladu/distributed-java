@@ -10,8 +10,7 @@ public final class PortfolioJson {
         String holdings = account.holdings().stream()
                 .map(holding -> "{\"symbol\":\"" + escape(holding.symbol()) + "\","
                         + "\"name\":\"" + escape(holding.name()) + "\","
-                        + "\"quantity\":" + holding.quantity().toPlainString() + ","
-                        + "\"averagePrice\":" + holding.averagePrice().toPlainString() + "}")
+                        + "\"quantity\":" + holding.quantity().toPlainString() + "}")
                 .collect(Collectors.joining(","));
         return "{\"cashBalance\":" + account.cashBalance().toPlainString()
                 + ",\"investedValue\":" + account.investedValue().toPlainString()

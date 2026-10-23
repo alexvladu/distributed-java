@@ -87,7 +87,8 @@ public class LiveMarketServlet extends HttpServlet {
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
-        if (!"/buy".equals(request.getPathInfo())) {
+        String path = request.getPathInfo();
+        if (!"/buy".equals(path) && !"/sell".equals(path)) {
             response.sendError(HttpServletResponse.SC_NOT_FOUND);
             return;
         }
@@ -106,7 +107,9 @@ public class LiveMarketServlet extends HttpServlet {
                 throw new IllegalArgumentException("Quantity is required");
             }
             BigDecimal quantity = new BigDecimal(quantityParameter);
-            AccountSnapshot account = getPortfolio().buy(stock, quantity, market);
+            AccountSnapshot account = "/buy".equals(path)
+                    ? getPortfolio().buy(stock, quantity, market)
+                    : getPortfolio().sell(stock, quantity, market);
             writeJson(response, PortfolioJson.write(account));
         } catch (NumberFormatException exception) {
             writeError(response, HttpServletResponse.SC_BAD_REQUEST, "Quantity must be a valid number");

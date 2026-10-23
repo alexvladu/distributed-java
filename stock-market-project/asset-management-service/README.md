@@ -29,9 +29,10 @@ so it updates when the asset-management service consumes a Kafka event.
 
 The live market starts with a $1,000.00 USD cash balance and no holdings.
 Search the Kafka-received market catalog and buy fractional shares. The
-account is persisted in `asset-management-service/data/account.json` when
-started from the project launcher (or `data/account.json` when run from this
-service directory). Override the location with
+Holdings can also be sold in full or in fractional quantities at the latest
+server-side Kafka price. The account is persisted in
+`asset-management-service/src/main/resources/data/account.json`. Override the
+location with
 `ACCOUNT_DATA_FILE`).
 
 The deploy script removes legacy context deployments and cached JSP output so
