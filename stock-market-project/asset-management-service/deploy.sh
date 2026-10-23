@@ -9,7 +9,11 @@ cd "$PROJECT_DIR"
 mvn clean package
 
 rm -rf "$CATALINA_BASE/webapps/ROOT" \
-       "$CATALINA_BASE/webapps/ROOT.war"
+       "$CATALINA_BASE/webapps/ROOT.war" \
+       "$CATALINA_BASE/webapps/asset-management-service" \
+       "$CATALINA_BASE/webapps/asset-management-service.war" \
+       "$CATALINA_BASE/work/Catalina/localhost/ROOT" \
+       "$CATALINA_BASE/work/Catalina/localhost/asset-management-service"
 cp target/asset-management-service.war \
    "$CATALINA_BASE/webapps/ROOT.war"
 

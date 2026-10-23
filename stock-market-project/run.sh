@@ -7,6 +7,7 @@ export CATALINA_HOME="$(brew --prefix tomcat)/libexec"
 export CATALINA_BASE="/home/alex/sisteme-distribuite/servere/tomcat-base"
 export JETTY_HOME="$(brew --prefix jetty)/libexec"
 export JETTY_BASE="/home/alex/sisteme-distribuite/servere/jetty-base"
+export ACCOUNT_DATA_FILE="$PROJECT_DIR/asset-management-service/data/account.json"
 TOMCAT_LOG="/tmp/asset-management-service-tomcat.log"
 JETTY_LOG="/tmp/stock-market-service-jetty.log"
 
@@ -44,10 +45,26 @@ java -jar "$JETTY_HOME/start.jar" \
 JETTY_PID=$!
 
 echo "Tomcat: http://localhost:8081/assets"
+echo "Home:   http://localhost:8081/"
 echo "Jetty:  stock-market producer running on localhost:8082"
 echo "Kafka:  localhost:9092 (topic: stock-prices)"
 echo "Live market: http://localhost:8081/live-market"
 echo "Logs:   $TOMCAT_LOG and $JETTY_LOG"
 echo "Press Ctrl+C to stop both servers and Kafka."
 
-wait -n "$TOMCAT_PID" "$JETTY_PID"
+set +e
+wait -n -p EXITED_PID "$TOMCAT_PID" "$JETTY_PID"
+EXIT_STATUS=$?
+set -e
+
+if [ "$EXITED_PID" = "$TOMCAT_PID" ]; then
+    EXITED_SERVICE="Tomcat"
+    EXITED_LOG="$TOMCAT_LOG"
+else
+    EXITED_SERVICE="Jetty"
+    EXITED_LOG="$JETTY_LOG"
+fi
+
+echo "$EXITED_SERVICE stopped unexpectedly (exit status $EXIT_STATUS)." >&2
+echo "Check $EXITED_LOG for the failure details." >&2
+exit "$EXIT_STATUS"

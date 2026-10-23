@@ -15,16 +15,31 @@ cp target/asset-management-service.war "$CATALINA_BASE/webapps/ROOT.war"
 "$(brew --prefix tomcat)/bin/catalina" run
 ```
 
-Open <http://localhost:8081/assets>.
+Open the home page at <http://localhost:8081/>.
+
+From there, open <http://localhost:8081/assets> to view available assets or
+<http://localhost:8081/live-market> to view the live market and manage the
+portfolio.
 
 Open the live market at
 <http://localhost:8081/live-market>. It displays the
 latest stock prices received from Kafka and refreshes every five seconds.
+The page receives price changes through a live Server-Sent Events connection,
+so it updates when the asset-management service consumes a Kafka event.
 
-The `/assets` servlet reads the CSV file at `src/main/resources/assets.csv`
-through `AssetService` and forwards the data to the JSP at
-`src/main/webapp/WEB-INF/views/assets.jsp`. The JSP is under `WEB-INF`, so it
-can only be reached through the servlet.
+The live market starts with a $1,000.00 USD cash balance and no holdings.
+Search the Kafka-received market catalog and buy fractional shares. The
+account is persisted in `asset-management-service/data/account.json` when
+started from the project launcher (or `data/account.json` when run from this
+service directory). Override the location with
+`ACCOUNT_DATA_FILE`).
+
+The deploy script removes legacy context deployments and cached JSP output so
+Tomcat serves the current root deployment after application changes.
+
+The `/assets` servlet forwards the live portfolio data received from Kafka to
+the JSP at `src/main/webapp/WEB-INF/views/assets.jsp`. The JSP is under
+`WEB-INF`, so it can only be reached through the servlet.
 
 ## Deploy
 

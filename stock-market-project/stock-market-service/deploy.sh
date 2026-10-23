@@ -15,7 +15,9 @@ if [ ! -f "$JETTY_BASE/start.d/ee10-deploy.ini" ]; then
 fi
 
 rm -rf "$JETTY_BASE/webapps/ROOT" \
-       "$JETTY_BASE/webapps/ROOT.war"
+       "$JETTY_BASE/webapps/ROOT.war" \
+       "$JETTY_BASE/webapps/stock-market-service" \
+       "$JETTY_BASE/webapps/stock-market-service.war"
 cp target/stock-market-service-1.0-SNAPSHOT.war \
    "$JETTY_BASE/webapps/ROOT.war"
 

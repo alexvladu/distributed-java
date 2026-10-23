@@ -20,13 +20,19 @@ ready, builds and deploys both services, and stops Kafka and both servers on
 
 The endpoints are:
 
-- Tomcat: <http://localhost:8081/asset-management-service/hello>
+- Home: <http://localhost:8081/>
+- Assets: <http://localhost:8081/assets>
 - Live market: <http://localhost:8081/live-market>
 - Jetty: stock-market producer on <http://localhost:8082>
-- Stock-market service: producer-only on <http://localhost:8082>
+
 The stock-market service starts with a base list of stocks, publishes the
 complete list to `stock-prices`, then updates one stock every 5–15 seconds with
 a small random price movement and publishes each updated DTO. The
 asset-management service consumes the events and logs the received updates.
+
+Open <http://localhost:8081/live-market> to search received stocks, view the
+live USD account balance, and buy fractional shares. New accounts start with
+$1,000.00 and no holdings; account state is stored locally in
+`asset-management-service/data/account.json`.
 
 `run.sh` stops both servers when you press `Ctrl+C`.

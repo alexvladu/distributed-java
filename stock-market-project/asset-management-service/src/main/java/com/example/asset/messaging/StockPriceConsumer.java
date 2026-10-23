@@ -10,6 +10,8 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.function.Consumer;
 
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
@@ -24,6 +26,7 @@ public final class StockPriceConsumer implements AutoCloseable {
     private final Thread worker;
     private final Map<String, StockCompany> latestPrices = new ConcurrentHashMap<>();
     private final Map<String, Instant> lastUpdated = new ConcurrentHashMap<>();
+    private final List<Consumer<StockCompany>> listeners = new CopyOnWriteArrayList<>();
 
     public StockPriceConsumer() {
         Properties properties = new Properties();
@@ -54,6 +57,7 @@ public final class StockPriceConsumer implements AutoCloseable {
                     StockCompany company = StockCompanyJson.read(record.value());
                     latestPrices.put(company.symbol(), company);
                     lastUpdated.put(company.symbol(), Instant.now());
+                    listeners.forEach(listener -> listener.accept(company));
                     System.out.printf("Received stock price for %s: %s at %s (quantity %d)%n",
                             company.symbol(), company.name(), company.price(), company.quantity());
                 }
@@ -80,6 +84,18 @@ public final class StockPriceConsumer implements AutoCloseable {
 
     public Instant lastUpdated(String symbol) {
         return lastUpdated.get(symbol);
+    }
+
+    public Map<String, StockCompany> latestPricesBySymbol() {
+        return Map.copyOf(latestPrices);
+    }
+
+    public void addListener(Consumer<StockCompany> listener) {
+        listeners.add(listener);
+    }
+
+    public void removeListener(Consumer<StockCompany> listener) {
+        listeners.remove(listener);
     }
 
     @Override
