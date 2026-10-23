@@ -17,6 +17,10 @@ cp target/asset-management-service.war "$CATALINA_BASE/webapps/"
 
 Open <http://localhost:8081/asset-management-service/assets>.
 
+Open the live market at
+<http://localhost:8081/asset-management-service/live-market>. It displays the
+latest stock prices received from Kafka and refreshes every five seconds.
+
 The `/assets` servlet reads the CSV file at `src/main/resources/assets.csv`
 through `AssetService` and forwards the data to the JSP at
 `src/main/webapp/WEB-INF/views/assets.jsp`. The JSP is under `WEB-INF`, so it

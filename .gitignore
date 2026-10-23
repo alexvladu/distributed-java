@@ -1,0 +1,13 @@
+# Local application-server runtimes and deployments
+servere/
+
+# Maven build output
+**/target/
+
+# Local logs
+*.log
+
+# IDE metadata
+.idea/
+.vscode/
+*.iml

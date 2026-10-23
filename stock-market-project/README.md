@@ -1,11 +1,12 @@
-# Plain Tomcat and Jetty projects
+# Plain Tomcat, Jetty, and Kafka projects
 
 This folder contains two independent Java web projects:
 
 - `asset-management-service`: a Jakarta Servlet WAR deployed to Tomcat 11
 - `stock-market-service`: a Jakarta Servlet WAR deployed to Jetty 12
+- Kafka runs in Docker Compose and carries `StockCompany` price updates on `stock-prices`
 
-## Run locally with Homebrew
+## Run locally with Homebrew and Docker
 
 Build, deploy, and start both servers from one terminal:
 
@@ -13,9 +14,19 @@ Build, deploy, and start both servers from one terminal:
 ./run.sh
 ```
 
+Docker must be running. `run.sh` starts Kafka, waits until its broker is
+ready, builds and deploys both services, and stops Kafka and both servers on
+`Ctrl+C`.
+
 The endpoints are:
 
 - Tomcat: <http://localhost:8081/asset-management-service/hello>
+- Live market: <http://localhost:8081/asset-management-service/live-market>
 - Jetty: <http://localhost:8082/stock-market-service/hello>
+- Available stocks: <http://localhost:8082/stock-market-service/stocks>
+The stock-market service starts with a base list of stocks, publishes the
+complete list to `stock-prices`, then updates one stock every 5–15 seconds with
+a small random price movement and publishes each updated DTO. The
+asset-management service consumes the events and logs the received updates.
 
 `run.sh` stops both servers when you press `Ctrl+C`.
