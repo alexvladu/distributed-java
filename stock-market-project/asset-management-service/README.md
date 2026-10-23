@@ -10,15 +10,15 @@ mvn clean package
 
 export CATALINA_HOME="$(brew --prefix tomcat)/libexec"
 export CATALINA_BASE="/home/alex/sisteme-distribuite/servere/tomcat-base"
-rm -rf "$CATALINA_BASE/webapps/asset-management-service" "$CATALINA_BASE/webapps/asset-management-service.war"
-cp target/asset-management-service.war "$CATALINA_BASE/webapps/"
+rm -rf "$CATALINA_BASE/webapps/ROOT" "$CATALINA_BASE/webapps/ROOT.war"
+cp target/asset-management-service.war "$CATALINA_BASE/webapps/ROOT.war"
 "$(brew --prefix tomcat)/bin/catalina" run
 ```
 
-Open <http://localhost:8081/asset-management-service/assets>.
+Open <http://localhost:8081/assets>.
 
 Open the live market at
-<http://localhost:8081/asset-management-service/live-market>. It displays the
+<http://localhost:8081/live-market>. It displays the
 latest stock prices received from Kafka and refreshes every five seconds.
 
 The `/assets` servlet reads the CSV file at `src/main/resources/assets.csv`

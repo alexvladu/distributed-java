@@ -43,10 +43,10 @@ java -jar "$JETTY_HOME/start.jar" \
     jetty.http.port=8082 >"$JETTY_LOG" 2>&1 &
 JETTY_PID=$!
 
-echo "Tomcat: http://localhost:8081/asset-management-service/assets"
-echo "Jetty:  http://localhost:8082/stock-market-service/hello"
+echo "Tomcat: http://localhost:8081/assets"
+echo "Jetty:  stock-market producer running on localhost:8082"
 echo "Kafka:  localhost:9092 (topic: stock-prices)"
-echo "Publish: curl -X POST 'http://localhost:8082/stock-market-service/stocks?symbol=AAPL&name=Apple%20Inc.&price=190.25&quantity=12'"
+echo "Live market: http://localhost:8081/live-market"
 echo "Logs:   $TOMCAT_LOG and $JETTY_LOG"
 echo "Press Ctrl+C to stop both servers and Kafka."
 

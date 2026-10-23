@@ -8,9 +8,9 @@ CATALINA_BASE="/home/alex/sisteme-distribuite/servere/tomcat-base"
 cd "$PROJECT_DIR"
 mvn clean package
 
-rm -rf "$CATALINA_BASE/webapps/asset-management-service" \
-       "$CATALINA_BASE/webapps/asset-management-service.war"
+rm -rf "$CATALINA_BASE/webapps/ROOT" \
+       "$CATALINA_BASE/webapps/ROOT.war"
 cp target/asset-management-service.war \
-   "$CATALINA_BASE/webapps/asset-management-service.war"
+   "$CATALINA_BASE/webapps/ROOT.war"
 
 echo "Deployed asset-management-service to $CATALINA_BASE/webapps"

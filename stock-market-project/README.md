@@ -21,9 +21,9 @@ ready, builds and deploys both services, and stops Kafka and both servers on
 The endpoints are:
 
 - Tomcat: <http://localhost:8081/asset-management-service/hello>
-- Live market: <http://localhost:8081/asset-management-service/live-market>
-- Jetty: <http://localhost:8082/stock-market-service/hello>
-- Available stocks: <http://localhost:8082/stock-market-service/stocks>
+- Live market: <http://localhost:8081/live-market>
+- Jetty: stock-market producer on <http://localhost:8082>
+- Stock-market service: producer-only on <http://localhost:8082>
 The stock-market service starts with a base list of stocks, publishes the
 complete list to `stock-prices`, then updates one stock every 5–15 seconds with
 a small random price movement and publishes each updated DTO. The

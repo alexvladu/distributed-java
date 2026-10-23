@@ -24,12 +24,10 @@ java -jar "$JETTY_HOME/start.jar" --add-modules=http,ee10-deploy
 Deploy the WAR:
 
 ```bash
-rm -rf "$JETTY_BASE/webapps/stock-market-service" "$JETTY_BASE/webapps/stock-market-service.war"
-cp /home/alex/sisteme-distribuite/stock-market-project/stock-market-service/target/stock-market-service-1.0-SNAPSHOT.war "$JETTY_BASE/webapps/stock-market-service.war"
+rm -rf "$JETTY_BASE/webapps/ROOT" "$JETTY_BASE/webapps/ROOT.war"
+cp /home/alex/sisteme-distribuite/stock-market-project/stock-market-service/target/stock-market-service-1.0-SNAPSHOT.war "$JETTY_BASE/webapps/ROOT.war"
 java -jar "$JETTY_HOME/start.jar" jetty.http.port=8082
 ```
-
-Open <http://localhost:8082/stock-market-service/hello>.
 
 The stock-market service is producer-only. It starts with AAPL, AMZN, MSFT,
 NVDA, and TSLA, publishes the complete base list to Kafka during startup, and
