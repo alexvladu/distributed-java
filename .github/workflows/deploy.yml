@@ -1,0 +1,47 @@
+name: Build and deploy database infrastructure
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "stock-market-project/docker-compose.yml"
+      - "stock-market-project/database-migrations/**"
+      - ".github/workflows/deploy.yml"
+  workflow_dispatch:
+
+jobs:
+  databases:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: stock-market-project
+    steps:
+      - uses: actions/checkout@v4
+      - name: Start database and messaging infrastructure
+        run: docker compose up -d --wait kafka postgres sqlserver oracle
+      - name: Apply database migrations
+        run: docker compose run --rm --build database-migrations
+      - name: Verify PostgreSQL users table
+        run: >
+          docker compose exec -T postgres psql
+          -U "$POSTGRES_USER" -d "$POSTGRES_DB"
+          -c "SELECT 1 FROM users LIMIT 1"
+        env:
+          POSTGRES_USER: stock_app
+          POSTGRES_DB: stock_market
+      - name: Verify SQL Server portfolios table
+        run: >
+          docker compose exec -T sqlserver
+          /opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa
+          -P "$MSSQL_SA_PASSWORD" -d stock_market
+          -Q "SELECT TOP 1 portfolio_id FROM dbo.portfolios"
+        env:
+          MSSQL_SA_PASSWORD: StockMarket_SA_123!
+      - name: Verify Oracle trades table
+        run: >
+          docker compose exec -T oracle
+          bash -c 'printf "SELECT 1 FROM trades;\\nEXIT;\\n" |
+          sqlplus -s "$${APP_USER}/$${APP_USER_PASSWORD}@FREEPDB1"'
+      - name: Stop infrastructure
+        if: always()
+        run: docker compose down -v
