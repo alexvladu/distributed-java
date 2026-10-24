@@ -1,0 +1,523 @@
+\documentclass[12pt,a4paper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[english]{babel}
+\usepackage{geometry}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{enumitem}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{fancyhdr}
+
+\geometry{a4paper, left=2.5cm, right=2.5cm, top=2.5cm, bottom=2.5cm}
+\setlength{\parindent}{1.25cm}
+\setlength{\parskip}{0.25em}
+\setlist{itemsep=0.2em, topsep=0.3em}
+\hypersetup{colorlinks=true, linkcolor=blue, urlcolor=blue}
+
+\pagestyle{fancy}
+\fancyhf{}
+\lhead{Stock Market Project}
+\rhead{Documentation}
+\cfoot{\thepage}
+
+\newcommand{\code}[1]{\texttt{\small #1}}
+\newcommand{\class}[1]{\textbf{\code{#1}}}
+
+\begin{document}
+
+\begin{titlepage}
+\centering
+\vspace*{1.5cm}
+{\Large University: \rule{8cm}{0.4pt}\par}
+\vspace{0.7cm}
+{\large Student: \rule{8cm}{0.4pt}\par}
+\vspace{0.4cm}
+{\large Group: \rule{8cm}{0.4pt}\par}
+\vfill
+{\LARGE\bfseries Documentation\\[0.3cm]
+for the Stock Market Project\par}
+\vspace{0.7cm}
+{\large Distributed system for stock-market simulation and portfolio management\par}
+\vfill
+{\large Academic year: \rule{5cm}{0.4pt}\par}
+\vspace{1cm}
+\end{titlepage}
+
+\tableofcontents
+\newpage
+
+\section{Purpose and general description}
+
+The project implements a minimal distributed system for a stock market. It
+consists of two independent Java web services connected through Apache Kafka:
+
+\begin{itemize}
+    \item \emph{stock-market-service} simulates the market, maintains the
+    initial list of companies, and publishes prices to the Kafka topic
+    \code{stock-prices};
+    \item \emph{asset-management-service} consumes price updates, stores the
+    latest quote for each symbol, and provides a web interface for viewing and
+    managing a portfolio.
+\end{itemize}
+
+The separation between producer and consumer demonstrates asynchronous
+message-based communication. The producer does not need to know how the
+portfolio is implemented, while the consumer can process events even when no
+web page is open. Kafka acts as a persistent intermediary and decouples the
+two services in time.
+
+The solution uses Java 21, Jakarta Servlet, Jetty 12 for the producer service,
+and Tomcat 11 for the asset-management service. Both applications are
+packaged as WAR archives. Account data is persisted locally in JSON format,
+while Kafka messages use a compact project-defined JSON representation.
+
+\section{System architecture}
+
+\subsection{Components}
+
+The logical architecture is:
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=\textwidth]{arhitecture-diagram.drawio.png}
+    \caption{System architecture and communication flow}
+    \label{fig:architecture}
+\end{figure}
+
+\noindent
+Figure~\ref{fig:architecture} summarizes the main components and their
+communication paths. The browser communicates with the Tomcat-hosted
+asset-management service, while the Jetty-hosted stock-market service
+publishes price updates to Kafka. The asset-management service consumes those
+updates and persists the portfolio state in the account file.
+
+\begin{center}
+\begin{tabular}{>{\raggedright\arraybackslash}p{3.3cm}
+                >{\centering\arraybackslash}p{1.5cm}
+                >{\raggedright\arraybackslash}p{7.0cm}}
+\toprule
+\textbf{Component} & \textbf{Port} & \textbf{Responsibility}\\
+\midrule
+Kafka & 9092 & Transports quote events through the \code{stock-prices} topic.\\
+Stock market service & 8082 & Runs on Jetty, generates prices, and publishes
+messages.\\
+Asset-management service & 8081 & Runs on Tomcat, consumes messages, and
+exposes the web API and JSP interface.\\
+Account file & -- & Stores the balance and holdings between restarts.\\
+\bottomrule
+\end{tabular}
+\end{center}
+
+When the market service starts, a context listener creates the repository, the
+Kafka publisher, and the simulator. The initial list contains AAPL, AMZN,
+MSFT, NVDA, and TSLA. Each item is published, after which the simulator
+schedules repeated updates at random intervals of 5--15 seconds.
+
+When the asset-management service starts, its context listener creates the
+Kafka consumer and portfolio service. The consumer joins the
+\code{asset-management-service} group, reads messages starting with the
+earliest available offset, and updates maps containing the latest quotes and
+their update times.
+
+\subsection{Processing sequence}
+
+\begin{enumerate}
+    \item Docker Compose starts the Kafka broker, and the launch script checks
+    that it is available.
+    \item Maven builds both WAR archives and the deployment scripts copy them
+    to the Jetty and Tomcat bases.
+    \item The market-service listener publishes the initial stock list.
+    \item The asset-management consumer polls every 500 ms and converts each
+    JSON value into a \class{StockCompany} object.
+    \item The quote is stored by symbol and every listener registered for a
+    Server-Sent Events stream is notified.
+    \item The web client requests a page, JSON data, or opens an SSE stream.
+    \item For a buy or sell operation, the price is read from the latest
+    server-side market, the transaction is validated, and the account file is
+    updated atomically.
+\end{enumerate}
+
+\subsection{Concurrency and consistency}
+
+The market repository uses \code{ConcurrentHashMap}, while the consumer uses
+concurrent collections for quotes and listeners. Financial operations in
+\class{PortfolioService} are synchronized so that incompatible requests cannot
+modify the balance and holdings simultaneously. The account file is written
+to a temporary file and then moved atomically, reducing the risk of leaving
+partial JSON data after an interruption.
+
+\section{Inputs, outputs, and operating conditions}
+
+\subsection{Configuration and dependencies}
+
+The system requires JDK 21, Maven, Docker with Docker Compose, Jetty 12, and
+Tomcat 11. The scripts assume a Homebrew-based environment for locating the
+servers. For a different installation, the variables \code{CATALINA\_HOME},
+\code{CATALINA\_BASE}, \code{JETTY\_HOME}, and \code{JETTY\_BASE} can be
+changed.
+
+The supported environment variables are:
+
+\begin{longtable}{>{\raggedright\arraybackslash}p{4.4cm}
+                  >{\raggedright\arraybackslash}p{3cm}
+                  >{\raggedright\arraybackslash}p{6.1cm}}
+\toprule
+\textbf{Variable} & \textbf{Default} & \textbf{Purpose}\\
+\midrule
+\endhead
+\code{KAFKA\_BOOTSTRAP\_SERVERS} & \code{localhost:9092} & Kafka broker address.\\
+\code{KAFKA\_TOPIC} & \code{stock-prices} & Event topic.\\
+\code{ACCOUNT\_DATA\_FILE} & \code{src/main/resources/data/account.json}
+& Persistent account-file path.\\
+\bottomrule
+\end{longtable}
+
+A market message contains \code{symbol}, \code{name}, \code{price}, and
+\code{quantity}. The symbol and name must not be blank, the price must be a
+non-negative decimal value, and the quantity must be a non-negative integer.
+Transaction quantities may be fractional, but must be strictly positive.
+
+\subsection{Build and deployment}
+
+Each service is packaged as a WAR archive using Maven. The deployment process
+is different for the two servlet containers, but both services are deployed
+under the root context of their respective server.
+
+The asset-management service is deployed to Tomcat by
+\code{asset-management-service/deploy.sh}. The script performs the following
+operations:
+
+\begin{enumerate}
+    \item changes to the service directory and runs
+    \code{mvn clean package};
+    \item removes previous root and legacy deployments, together with cached
+    Tomcat work files;
+    \item copies \code{target/asset-management-service.war} to the Tomcat
+    webapps directory as \code{ROOT.war}.
+\end{enumerate}
+
+The stock-market service is deployed to Jetty by
+\code{stock-market-service/deploy.sh}. This script:
+
+\begin{enumerate}
+    \item runs \code{mvn clean package};
+    \item creates the Jetty base directory and enables the HTTP and
+    \code{ee10-deploy} modules if they are not already configured;
+    \item removes previous root and legacy deployments;
+    \item copies \code{target/stock-market-service-1.0-SNAPSHOT.war} to the
+    Jetty webapps directory as \code{ROOT.war}.
+\end{enumerate}
+
+The complete local deployment can be started from the project root with:
+
+\begin{verbatim}
+./run.sh
+\end{verbatim}
+
+The script starts Kafka using Docker Compose, waits until the broker accepts
+connections, executes both deployment scripts, and starts Tomcat and Jetty.
+Tomcat serves the asset-management application on port 8081, while Jetty
+serves the stock-market producer on port 8082. The account-file path is
+explicitly configured by the script through \code{ACCOUNT\_DATA\_FILE}.
+Tomcat and Jetty logs are written to
+\code{/tmp/asset-management-service-tomcat.log} and
+\code{/tmp/stock-market-service-jetty.log}.
+
+Deployment requires Docker to be running and assumes that the server
+locations are available through Homebrew. The paths can be adapted by changing
+\code{CATALINA\_HOME}, \code{CATALINA\_BASE}, \code{JETTY\_HOME}, and
+\code{JETTY\_BASE}. To stop the local deployment from another terminal, use:
+
+\begin{verbatim}
+./stop.sh
+\end{verbatim}
+
+This command releases ports 8081 and 8082. Pressing \code{Ctrl+C} in the
+terminal running \code{run.sh} additionally stops both application servers and
+the Kafka Docker Compose stack.
+
+\subsection{HTTP interface}
+
+\begin{longtable}{>{\raggedright\arraybackslash}p{2.2cm}
+                  >{\raggedright\arraybackslash}p{4.1cm}
+                  >{\raggedright\arraybackslash}p{7.2cm}}
+\toprule
+\textbf{Method} & \textbf{Route} & \textbf{Behavior}\\
+\midrule
+\endhead
+GET & \code{/} & Application home page.\\
+GET & \code{/assets} & JSP page containing portfolio data.\\
+GET & \code{/assets/events} & SSE stream with updated market and account data.\\
+GET & \code{/live-market} & Live-market user interface.\\
+GET & \code{/live-market/data} & JSON containing stocks and account status.\\
+GET & \code{/live-market/events} & SSE stream for live updates.\\
+POST & \code{/live-market/buy} & Buys the requested quantity of a symbol.\\
+POST & \code{/live-market/sell} & Sells the requested quantity of a symbol.\\
+\bottomrule
+\end{longtable}
+
+The last two routes receive the \code{symbol} and \code{quantity} parameters.
+The symbol is normalized by trimming whitespace and converting it to
+uppercase. If the stock is not present in the latest market, the quantity is
+missing or invalid, the balance is insufficient, or too few shares are held,
+the server returns HTTP 400 and a JSON object containing an \code{error} field.
+
+\section{Objects and prototypes}
+
+The following sections describe the project objects without including their
+implementation. The prototypes show method names, parameters, and return
+types.
+
+\subsection{Stock-market service}
+
+\begin{description}
+\item[\class{StockCompany}] A record with the components \code{String symbol},
+\code{String name}, \code{BigDecimal price}, and \code{long quantity}. The
+record's implicit constructor creates a complete quote.
+
+\item[\class{StockCompanyJson}] A utility class with no public instantiation.
+\begin{itemize}
+    \item \code{static String write(StockCompany company)} -- serializes one
+    quote.
+    \item \code{static String writeAll(List<StockCompany> companies)} --
+    serializes a list.
+    \item \code{static StockCompany fromParameters(String symbol, String name,
+    String price, String quantity)} -- validates text parameters and creates a
+    quote.
+\end{itemize}
+The parsing method can throw \code{IllegalArgumentException} for missing
+fields, non-numeric values, or negative values.
+
+\item[\class{StockCompanyRepository}] The no-argument constructor loads five
+initial companies.
+\begin{itemize}
+    \item \code{void save(StockCompany company)} -- stores a company by
+    \code{symbol}.
+    \item \code{List<StockCompany> findAll()} -- returns companies in sorted
+    order.
+    \item \code{StockCompany createRandomPriceUpdate()} -- selects a company
+    and calculates a random price variation.
+\end{itemize}
+
+\item[\class{StockMarketPublisher}] The no-argument constructor configures the
+Kafka producer. \code{RecordMetadata publish(StockCompany company)} publishes
+the message and waits for broker confirmation; it can throw \code{Exception}.
+\code{void close()} closes the producer and implements \code{AutoCloseable}.
+
+\item[\class{StockMarketSimulator}] The constructor
+\code{StockMarketSimulator(StockCompanyRepository repository,
+StockMarketPublisher publisher)} receives the data source and publisher.
+\code{void start()} publishes initial values and starts scheduling.
+\code{void close()} cancels the next update and stops the executor.
+\end{description}
+
+\subsection{Asset-management service}
+
+\begin{description}
+\item[\class{StockCompany}] A DTO record with \code{String symbol},
+\code{String name}, \code{BigDecimal price}, and \code{long quantity}. It is
+the local representation of a consumed message.
+
+\item[\class{StockCompanyJson}] A utility class without a public constructor.
+\code{static StockCompany read(String value)} parses a JSON message and can
+throw \code{IllegalArgumentException} for an invalid format.
+
+\item[\class{StockPriceConsumer}] The no-argument constructor configures the
+Kafka consumer. Its public methods are:
+\begin{itemize}
+    \item \code{void start()} -- starts the consumer thread;
+    \item \code{List<StockCompany> latestPrices()} -- returns sorted quotes;
+    \item \code{Instant lastUpdated(String symbol)} -- returns the last update
+    time;
+    \item \code{Map<String, StockCompany> latestPricesBySymbol()} -- returns
+    an unmodifiable copy of the market;
+    \item \code{void addListener(Consumer<StockCompany> listener)} and
+    \code{void removeListener(Consumer<StockCompany> listener)} -- manage SSE
+    subscribers;
+    \item \code{void close()} -- stops the consumer.
+\end{itemize}
+
+\item[\class{Holding}] A record with \code{String symbol}, \code{String name},
+and \code{BigDecimal quantity}, representing a holding.
+
+\item[\class{AccountState}] A persistent record with
+\code{BigDecimal cashBalance} and \code{List<Holding> holdings}.
+
+\item[\class{AccountSnapshot}] A presentation record with
+\code{BigDecimal cashBalance}, \code{BigDecimal investedValue},
+\code{BigDecimal totalValue}, and \code{List<Holding> holdings}.
+
+\item[\class{PortfolioJson}] A utility class. \code{static String
+write(AccountSnapshot account)} converts an account snapshot to JSON.
+
+\item[\class{PortfolioService}] The public no-argument constructor uses the
+path from \code{ACCOUNT\_DATA\_FILE}; the constructor with
+\code{Path accountFile} is intended for internal configuration. Its methods
+are:
+\begin{itemize}
+    \item \code{AccountSnapshot snapshot(Map<String, StockCompany> market)} --
+    calculates investment value using current prices;
+    \item \code{AccountSnapshot buy(StockCompany stock, BigDecimal quantity,
+    Map<String, StockCompany> market)} -- buys shares;
+    \item \code{AccountSnapshot sell(StockCompany stock, BigDecimal quantity,
+    Map<String, StockCompany> market)} -- sells shares.
+\end{itemize}
+The transaction methods throw \code{IllegalArgumentException} for an invalid
+quantity, an unknown symbol, insufficient balance, or insufficient shares.
+They can throw \code{IllegalStateException} if the account file cannot be
+loaded or saved.
+
+\item[\class{AssetServlet}] Extends \code{HttpServlet}. The method
+\code{void doGet(HttpServletRequest request, HttpServletResponse response)}
+serves the \code{/assets} page or the \code{/assets/events} stream; it can
+throw \code{ServletException} and \code{IOException}.
+
+\item[\class{LiveMarketServlet}] Extends \code{HttpServlet}. The methods
+\code{void doGet(HttpServletRequest request, HttpServletResponse response)} and
+\code{void doPost(HttpServletRequest request, HttpServletResponse response)}
+serve the page, data, SSE, buying, and selling operations. The declared
+exceptions are \code{ServletException} and \code{IOException}; validation
+errors are converted into HTTP 400 responses.
+\end{description}
+
+The \class{StockMarketContextListener} and
+\class{StockPriceContextListener} classes implement
+\code{ServletContextListener}. Their default constructor is used by the
+container. \code{void contextInitialized(ServletContextEvent event)} creates
+the components, while \code{void contextDestroyed(ServletContextEvent event)}
+releases resources. In the second service, the objects are registered in the
+servlet context so that they can be used by the servlets.
+
+\section{System calls and relevant libraries}
+
+The project does not make direct native kernel calls; system-level operations
+are provided by Java libraries and external launch processes. The important
+uses are:
+
+\begin{itemize}
+    \item TCP/IP through the Kafka client and the Jetty/Tomcat HTTP servers;
+    \item Java threads for the consumer and the simulator's scheduled executor;
+    \item file-system operations through \code{Files.readString},
+    \code{Files.writeString}, \code{Files.createDirectories}, and
+    \code{Files.move};
+    \item external processes started by the shell scripts: Docker Compose,
+    Maven, Tomcat, and Jetty;
+    \item controlled shutdown through Kafka \code{wakeup()} and executor
+    interruption;
+    \item persistent HTTP connections for Server-Sent Events, using the
+    \code{text/event-stream}, \code{no-cache}, and \code{keep-alive} headers.
+\end{itemize}
+
+\section{Usage examples}
+
+\subsection{Starting the system}
+
+From the project directory, run:
+
+\begin{verbatim}
+./run.sh
+\end{verbatim}
+
+The script starts Kafka, waits for the broker, builds and deploys both
+services, and starts the application servers. The application is available at
+\url{http://localhost:8081/live-market}, while the market service runs on port
+8082. Stop the system with \code{Ctrl+C} or, from another terminal, with
+\code{./stop.sh}.
+
+\subsection{Buying and selling}
+
+A client can buy 0.5 AAPL shares with:
+
+\begin{verbatim}
+curl -X POST http://localhost:8081/live-market/buy \
+  -d "symbol=AAPL&quantity=0.5"
+\end{verbatim}
+
+The response is JSON containing the available balance, invested value, total
+value, and holdings. A partial sale is analogous:
+
+\begin{verbatim}
+curl -X POST http://localhost:8081/live-market/sell \
+  -d "symbol=AAPL&quantity=0.2"
+\end{verbatim}
+
+The current state can be read without modifying the account:
+
+\begin{verbatim}
+curl http://localhost:8081/live-market/data
+\end{verbatim}
+
+In a browser, the \code{/live-market} page uses SSE to display prices without
+a full page reload. The account is valued using the latest server-side price,
+not a value supplied by the client.
+
+\section{Test suite and verification}
+
+The following table describes the recommended tests. The first tests verify
+functionality, while the last tests verify integration and error handling.
+
+\begin{longtable}{p{0.8cm}p{4.0cm}p{5.1cm}p{3.4cm}}
+\toprule
+\textbf{ID} & \textbf{Scenario} & \textbf{Expected result} & \textbf{Verification}\\
+\midrule
+\endhead
+T1 & Start broker and services & Kafka is available and both WARs start
+without errors & logs and ports\\
+T2 & Initial publication & The five symbols appear in the consumer & endpoint
+\code{/live-market/data}\\
+T3 & Random update & A symbol price changes after 5--15 seconds & producer
+log and SSE\\
+T4 & Valid purchase & Balance decreases by the rounded cost and holdings
+increase & POST \code{/buy}\\
+T5 & Partial sale & Holdings and balance are updated correctly & POST
+\code{/sell}\\
+T6 & Zero or negative quantity & HTTP 400 and an error message & JSON response\\
+T7 & Insufficient balance & The transaction does not modify the account file
+& HTTP 400\\
+T8 & Sale above holdings & The transaction is rejected & HTTP 400\\
+T9 & Restart & Balance and holdings are restored from JSON & file and snapshot\\
+T10 & Controlled shutdown & Threads and Kafka connections close cleanly
+& Ctrl+C and logs\\
+\bottomrule
+\end{longtable}
+
+To verify the build, run \code{mvn clean package} in each service. Complete
+integration testing must be performed with Kafka active because the
+asset-management service depends on the broker and on published messages. If
+the account file is corrupt, the application must explicitly report an
+\code{IllegalStateException} rather than continuing with an apparently valid
+empty account.
+
+\section{Alternative solutions and limitations}
+
+Kafka could be replaced by direct REST communication, WebSocket, or another
+JMS broker. REST would be simpler for a single request, but would couple the
+producer and consumer and would require additional retry and event-retention
+mechanisms. WebSocket would be appropriate for browser updates, but would not
+necessarily replace the broker between the services. The current solution uses
+SSE for the browser because the stream is unidirectional and simple to consume.
+
+The implementation is intentionally minimal: it has one local broker, one
+persistent account, and no authentication, authorization, transactional
+database, or replication. A production system would require user identities,
+standardized JSON validation, multiple Kafka partitions, replication,
+structured logging, and a transactional database. These limitations do not
+affect the demonstration of distributed communication, asynchronous
+processing, and portfolio management.
+
+\section{Conclusions}
+
+The project demonstrates a clear distributed architecture in which market-data
+generation, message transport, and portfolio management are separate
+responsibilities. Kafka provides event decoupling and delivery, servlets
+provide HTTP access, and SSE sends changes to the web interface in near real
+time. Atomic account persistence and synchronized transaction operations
+preserve local consistency. Through the documented routes and test suite, the
+behavior can be verified both component by component and end to end.
+
+\end{document}

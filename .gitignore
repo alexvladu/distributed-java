@@ -3,6 +3,7 @@ servere/
 
 # Maven build output
 **/target/
+/data/
 
 # Local logs
 *.log

@@ -1,0 +1,47 @@
+<mxfile host="65bd71144e">
+    <diagram id="stock-market-architecture" name="Stock Market Architecture">
+        <mxGraphModel dx="884" dy="1648" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="827" math="0" shadow="0">
+            <root>
+                <mxCell id="0"/>
+                <mxCell id="1" parent="0"/>
+                <mxCell id="browser" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=14;" value="Web Browser&#xa;User" vertex="1">
+                    <mxGeometry height="70" width="150" x="40" y="220" as="geometry"/>
+                </mxCell>
+                <mxCell id="tomcat" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=14;" value="Tomcat 11&#xa;Asset Management Service&#xa;localhost:8081" vertex="1">
+                    <mxGeometry height="110" width="230" x="354" y="200" as="geometry"/>
+                </mxCell>
+                <mxCell id="jetty" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=14;" value="Jetty 12&#xa;Stock Market Service&#xa;localhost:8082" vertex="1">
+                    <mxGeometry height="110" width="230" x="280" y="390" as="geometry"/>
+                </mxCell>
+                <mxCell id="kafka" parent="1" style="shape=cylinder;whiteSpace=wrap;html=1;boundedLbl=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=14;" value="Apache Kafka&#xa;Topic: stock-prices&#xa;localhost:9092" vertex="1">
+                    <mxGeometry height="120" width="210" x="640" y="280" as="geometry"/>
+                </mxCell>
+                <mxCell id="account" parent="1" style="shape=note;whiteSpace=wrap;html=1;backgroundOutline=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=14;" value="account.json&#xa;Persistent portfolio state" vertex="1">
+                    <mxGeometry height="90" width="210" x="364" y="-60" as="geometry"/>
+                </mxCell>
+                <mxCell id="browser-tomcat" edge="1" parent="1" source="browser" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;strokeWidth=2;" target="tomcat" value="HTTP&#xa;SSE live updates">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="jetty-kafka" edge="1" parent="1" source="jetty" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;strokeWidth=2;" target="kafka" value="Publish price updates&#xa;Kafka Producer">
+                    <mxGeometry relative="1" x="0.0213" y="-5" as="geometry">
+                        <mxPoint as="offset"/>
+                        <Array as="points">
+                            <mxPoint x="575" y="445"/>
+                            <mxPoint x="575" y="410"/>
+                            <mxPoint x="745" y="410"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="kafka-tomcat" edge="1" parent="1" source="kafka" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;strokeWidth=2;" target="tomcat" value="Consume stock-prices&#xa;Kafka Consumer">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="tomcat-account" edge="1" parent="1" source="tomcat" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=both;strokeWidth=2;dashed=1;" target="account" value="Read/write&#xa;portfolio state">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="legend" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=13;align=left;spacingLeft=10;" value="Main communication path:&#xa;Jetty → Kafka → Tomcat → Browser" vertex="1">
+                    <mxGeometry height="65" width="470" x="40" y="570" as="geometry"/>
+                </mxCell>
+            </root>
+        </mxGraphModel>
+    </diagram>
+</mxfile>
