@@ -32,20 +32,23 @@
 
 \begin{titlepage}
 \centering
-\vspace*{1.5cm}
-{\Large University: \rule{8cm}{0.4pt}\par}
-\vspace{0.7cm}
-{\large Student: \rule{8cm}{0.4pt}\par}
-\vspace{0.4cm}
-{\large Group: \rule{8cm}{0.4pt}\par}
-\vfill
+\vspace*{\fill}
+
 {\LARGE\bfseries Documentation\\[0.3cm]
 for the Stock Market Project\par}
+
 \vspace{0.7cm}
 {\large Distributed system for stock-market simulation and portfolio management\par}
-\vfill
-{\large Academic year: \rule{5cm}{0.4pt}\par}
+
+\vspace{1.5cm}
+{\large Student: Vladu Alexandru-Gheorghe\par}
+\vspace{0.4cm}
+{\large Group: 244\par}
+
 \vspace{1cm}
+{\large Academic year: 2026-2027\par}
+
+\vspace*{\fill}
 \end{titlepage}
 
 \tableofcontents
@@ -163,17 +166,18 @@ changed.
 
 The supported environment variables are:
 
-\begin{longtable}{>{\raggedright\arraybackslash}p{4.4cm}
-                  >{\raggedright\arraybackslash}p{3cm}
-                  >{\raggedright\arraybackslash}p{6.1cm}}
+\begin{longtable}{@{}>{\raggedright\arraybackslash}p{0.35\linewidth}
+                  >{\raggedright\arraybackslash}p{0.27\linewidth}
+                  >{\raggedright\arraybackslash}p{0.32\linewidth}@{}}
 \toprule
 \textbf{Variable} & \textbf{Default} & \textbf{Purpose}\\
 \midrule
 \endhead
-\code{KAFKA\_BOOTSTRAP\_SERVERS} & \code{localhost:9092} & Kafka broker address.\\
+\code{KAFKA\_\allowbreak BOOTSTRAP\_\allowbreak SERVERS} & \code{localhost:9092} & Kafka broker address.\\
 \code{KAFKA\_TOPIC} & \code{stock-prices} & Event topic.\\
-\code{ACCOUNT\_DATA\_FILE} & \code{src/main/resources/data/account.json}
-& Persistent account-file path.\\
+\code{ACCOUNT\_\allowbreak DATA\_\allowbreak FILE} 
+  & \code{src/\allowbreak main/\allowbreak resources/\allowbreak data/\allowbreak account.json}
+  & Persistent account-file path.\\
 \bottomrule
 \end{longtable}
 
