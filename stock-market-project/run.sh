@@ -3,13 +3,21 @@ set -euo pipefail
 
 PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 COMPOSE_FILE="$PROJECT_DIR/docker-compose.yml"
+if [ -f "$PROJECT_DIR/.env" ]; then
+    set -a
+    # shellcheck disable=SC1091
+    . "$PROJECT_DIR/.env"
+    set +a
+fi
 RUN_LOCK_FILE="/tmp/stock-market-project.run.lock"
+RUN_PID_FILE="/tmp/stock-market-project.run.pid"
 exec 9>"$RUN_LOCK_FILE"
 if ! flock -n 9; then
     echo "Another run.sh instance is already running." >&2
     echo "Stop it with Ctrl+C in its terminal before starting another one." >&2
     exit 1
 fi
+printf '%s\n' "$$" >"$RUN_PID_FILE"
 
 export CATALINA_HOME="$(brew --prefix tomcat)/libexec"
 export CATALINA_BASE="/home/alex/sisteme-distribuite/servere/tomcat-base"
@@ -21,6 +29,7 @@ JETTY_LOG="/tmp/stock-market-service-jetty.log"
 
 cleanup() {
     trap - TERM INT EXIT
+    rm -f "$RUN_PID_FILE"
     [ -n "${TOMCAT_PID:-}" ] && kill "$TOMCAT_PID" 2>/dev/null || true
     [ -n "${JETTY_PID:-}" ] && kill "$JETTY_PID" 2>/dev/null || true
     docker compose -f "$COMPOSE_FILE" down

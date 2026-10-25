@@ -60,6 +60,25 @@ record before writes and use compensating/error handling when a referenced
 record is missing. The deployment workflow is
 `.github/workflows/deploy.yml`.
 
+The asset-management service now exposes the BCE database API:
+
+```text
+GET/POST        /api/users
+GET/PUT/DELETE  /api/users/{id}
+GET/POST        /api/portfolios
+GET/PUT/DELETE  /api/portfolios/{id}
+GET/POST        /api/trades
+GET/PUT/DELETE  /api/trades/{id}
+GET             /dashboard
+```
+
+The boundaries call Control classes, Controls coordinate repository
+implementations, and repositories access PostgreSQL, SQL Server, and OracleDB.
+Authentication is available at `/auth.html`; registration creates the
+PostgreSQL user and credentials, and `/api/*` plus `/dashboard` require an
+authenticated session. The authenticated user is taken from the server-side
+session rather than from a client-provided `userId`.
+
 To reset the databases and replay all migrations:
 
 ```bash
@@ -68,7 +87,8 @@ docker compose up -d --wait kafka postgres sqlserver oracle
 docker compose run --rm --build database-migrations
 ```
 
-To stop the services by port from another terminal, run:
+To stop the launcher, its Docker Compose services, and any remaining processes
+on the application ports from another terminal, run:
 
 ```bash
 ./stop.sh

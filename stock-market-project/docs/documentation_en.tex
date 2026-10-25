@@ -151,6 +151,23 @@ modify the balance and holdings simultaneously. The account file is written
 to a temporary file and then moved atomically, reducing the risk of leaving
 partial JSON data after an interruption.
 
+\subsection{Boundary--Control--Entity application structure}
+
+The asset-management service separates HTTP/UI boundaries, business controls,
+and persistence entities. Servlets under \code{boundary} parse requests and
+serialize responses, controls under \code{control} validate business rules
+and coordinate repositories, and entities under \code{entity} contain domain
+records and JDBC repository implementations. The repositories connect to
+PostgreSQL for users, SQL Server for portfolios, and OracleDB for trades.
+The \code{database.html} page calls the dashboard boundary and combines
+records from all three databases.
+
+Authentication is implemented with a PostgreSQL Flyway migration,
+\code{user\_credentials}, PBKDF2 password hashes, HTTP sessions, login and
+registration boundaries, and an authentication filter protecting the API and
+dashboard. The authenticated user ID is taken from the server-side session,
+not from request parameters.
+
 \section{Inputs, outputs, and operating conditions}
 
 \subsection{Configuration and dependencies}

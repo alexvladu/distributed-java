@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Authentication</title>
+<style>body{font:16px system-ui;max-width:30rem;margin:3rem auto;padding:1rem}form{display:grid;gap:.7rem;margin:2rem 0}input,button{font:inherit;padding:.6rem}button{background:#1458c4;color:#fff;border:0}#message{min-height:1.5rem}</style></head>
+<body><h1>Stock Portfolio</h1><section><h2>Login</h2><form id="login"><input name="username" placeholder="Username" required><input name="password" type="password" placeholder="Password" required><button>Login</button></form></section>
+<section><h2>Register</h2><form id="register"><input name="username" placeholder="Username" required><input name="email" type="email" placeholder="Email" required><input name="password" type="password" minlength="10" placeholder="Password (10+ characters)" required><button>Register</button></form></section><p id="message"></p>
+<script>
+async function submit(id,url) {
+    const form = document.getElementById(id);
+    form.addEventListener("submit", async event => {
+        event.preventDefault();
+        const body = Object.fromEntries(new FormData(form));
+        const response = await fetch(url, {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify(body)
+        });
+        if (response.ok) {
+            window.location.assign("database.html");
+            return;
+        }
+        document.getElementById("message").textContent = await response.text();
+    });
+}
+submit("login", "auth/login");
+submit("register", "auth/register");
+</script></body></html>

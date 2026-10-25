@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Database dashboard</title>
+    <style>
+        :root { --bg:#f3f5f8; --surface:#fff; --ink:#0f1b2d; --muted:#5d6b80; --line:#dde3ea; --accent:#1458c4; --bad:#b3261e; }
+        * { box-sizing:border-box; }
+        body { background:var(--bg); color:var(--ink); font:16px/1.5 system-ui,sans-serif; margin:0; }
+        header { background:var(--surface); border-bottom:1px solid var(--line); padding:1rem; }
+        header div, main { margin:auto; max-width:72rem; }
+        header a { color:var(--ink); font-weight:700; margin-right:1.5rem; text-decoration:none; }
+        main { padding:2rem 1rem 4rem; }
+        .toolbar, .card { background:var(--surface); border:1px solid var(--line); border-radius:.75rem; padding:1rem; }
+        .toolbar { display:flex; flex-wrap:wrap; gap:.75rem; margin:1rem 0; }
+        input, button { border:1px solid #c3ccd8; border-radius:.4rem; font:inherit; padding:.45rem .7rem; }
+        button { background:var(--accent); border-color:var(--accent); color:#fff; cursor:pointer; font-weight:600; }
+        .message { color:var(--muted); min-height:1.5rem; }
+        .error { color:var(--bad); }
+        .grid { display:grid; gap:1rem; grid-template-columns:repeat(auto-fit,minmax(20rem,1fr)); }
+        h1 { margin-bottom:.25rem; } h2 { font-size:1.1rem; margin-top:0; }
+        table { border-collapse:collapse; width:100%; } th,td { border-bottom:1px solid var(--line); padding:.55rem; text-align:left; }
+        th { color:var(--muted); font-size:.85rem; }
+        .empty { color:var(--muted); }
+    </style>
+</head>
+<body>
+<header><div><a href="/">Stock Portfolio</a><a href="/live-market">Live market</a><a href="/assets">Assets</a><a href="/database.html">Database dashboard</a><button id="logout">Logout</button></div></header>
+<main>
+    <h1>Database dashboard</h1>
+    <p>Users come from PostgreSQL, portfolios from SQL Server, and trades from OracleDB.</p>
+    <div class="toolbar"><button id="load">Load my dashboard</button><a href="/auth.html">Login / register</a></div>
+    <p id="message" class="message" role="status"></p>
+    <div class="grid">
+        <section class="card"><h2>User · PostgreSQL</h2><div id="user" class="empty">Not loaded</div></section>
+        <section class="card"><h2>Portfolios · SQL Server</h2><div id="portfolios" class="empty">Not loaded</div></section>
+        <section class="card"><h2>Trades · OracleDB</h2><div id="trades" class="empty">Not loaded</div></section>
+    </div>
+</main>
+<script>
+    const message = document.getElementById("message");
+    document.getElementById("logout").addEventListener("click", async () => {
+        await fetch("auth/logout", {method: "POST"});
+        window.location.assign("auth.html");
+    });
+    document.getElementById("load").addEventListener("click", async () => {
+        message.className = "message";
+        message.textContent = "Loading...";
+        try {
+            const response = await fetch("dashboard");
+            const dashboard = await response.json();
+            if (!response.ok) throw new Error(dashboard.message || "Unable to load dashboard");
+            render(dashboard);
+            message.textContent = "Loaded user " + dashboard.user.username + ".";
+        } catch (error) {
+            message.className = "message error";
+            message.textContent = error.message;
+        }
+    });
+    function render(data) {
+        document.getElementById("user").innerHTML =
+            "<strong>" + escapeHtml(data.user.username) + "</strong><br>" + escapeHtml(data.user.email)
+            + "<br><small>ID: " + data.user.userId + "</small>";
+        document.getElementById("portfolios").innerHTML = data.portfolios.length
+            ? table(["ID", "Name"], data.portfolios.map(p => [p.portfolioId, p.portfolioName]))
+            : '<span class="empty">No portfolios.</span>';
+        const trades = Object.values(data.trades).flat();
+        document.getElementById("trades").innerHTML = trades.length
+            ? table(["ID", "Portfolio", "Symbol", "Side", "Quantity"],
+                trades.map(t => [t.tradeId, t.portfolioId, t.symbol, t.side, t.quantity]))
+            : '<span class="empty">No trades.</span>';
+    }
+    function table(headers, rows) {
+        return "<table><thead><tr>" + headers.map(h => "<th>" + h + "</th>").join("")
+            + "</tr></thead><tbody>" + rows.map(row => "<tr>" + row.map(cell => "<td>"
+                + escapeHtml(String(cell)) + "</td>").join("") + "</tr>").join("") + "</tbody></table>";
+    }
+    function escapeHtml(value) {
+        return value.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;")
+            .replaceAll('"', "&quot;").replaceAll("'", "&#039;");
+    }
+</script>
+</body>
+</html>
