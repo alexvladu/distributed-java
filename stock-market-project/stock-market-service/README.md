@@ -1,49 +1,31 @@
 # Stock market service
 
-This is a minimal Jakarta Servlet WAR for Jetty 12.
+Jetty 12 WAR that simulates the market. It starts with AAPL, AMZN, MSFT, NVDA, and TSLA, publishes
+the full list, and then changes one random price every 5–15 seconds (a small Gaussian move,
+never below $0.01). Every price is published as a `StockPriceEvent` (see `stock-market-contracts`)
+to the `stock-prices` Kafka topic, keyed by symbol.
 
-## Build
+- The first publication runs in the background, so Jetty starts even if Kafka is slow.
+- `GET /health` reports `UP` when a price was published in the last minute, `STARTING` before the
+  first one, and `DOWN` (HTTP 503) otherwise, with the last error.
+- `KAFKA_BOOTSTRAP_SERVERS` and `KAFKA_TOPIC` override `localhost:9092` and `stock-prices`.
 
-```bash
-cd /home/alex/sisteme-distribuite/stock-market-project/stock-market-service
-mvn clean package
-```
+The listener and the health servlet are declared in `WEB-INF/web.xml` because the Jetty base does
+not enable annotation scanning.
 
-## Run with the Homebrew Jetty
+## Build and deploy
 
-Create a Jetty base directory once:
-
-```bash
-export JETTY_HOME="$(brew --prefix jetty)/libexec"
-export JETTY_BASE="/home/alex/sisteme-distribuite/servere/jetty-base"
-mkdir -p "$JETTY_BASE"
-cd "$JETTY_BASE"
-java -jar "$JETTY_HOME/start.jar" --add-modules=http,ee10-deploy
-```
-
-Deploy the WAR:
-
-```bash
-rm -rf "$JETTY_BASE/webapps/ROOT" "$JETTY_BASE/webapps/ROOT.war"
-cp /home/alex/sisteme-distribuite/stock-market-project/stock-market-service/target/stock-market-service-1.0-SNAPSHOT.war "$JETTY_BASE/webapps/ROOT.war"
-java -jar "$JETTY_HOME/start.jar" jetty.http.port=8082
-```
-
-The stock-market service is producer-only. It starts with AAPL, AMZN, MSFT,
-NVDA, and TSLA, publishes the complete base list to Kafka during startup, and
-then updates one stock every 5–15 seconds using a small random price
-distribution. Each initial stock and subsequent update is published as a
-`StockCompany` DTO to the `stock-prices` Kafka topic. Set
-`KAFKA_BOOTSTRAP_SERVERS` or `KAFKA_TOPIC` to override the defaults.
-
-The Kafka publisher is registered explicitly in `WEB-INF/web.xml` so startup
-publishing works with Jetty deployments that do not scan `@WebListener`
-annotations.
-
-## Deploy
-
-From the project root:
+From `stock-market-project`:
 
 ```bash
 ./stock-market-service/deploy.sh
+```
+
+This builds the module (and the shared contracts module), creates the Jetty base with the `http`
+and `ee10-deploy` modules if needed, and copies the WAR to
+`$SERVERS_DIR/jetty-base/webapps/ROOT.war`. Start Jetty with:
+
+```bash
+cd "$SERVERS_DIR/jetty-base"
+java -jar "$(brew --prefix jetty)/libexec/start.jar" jetty.http.port=8082
 ```

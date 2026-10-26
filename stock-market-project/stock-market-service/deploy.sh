@@ -1,24 +1,19 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-export JETTY_HOME="$(brew --prefix jetty)/libexec"
-export JETTY_BASE="/home/alex/sisteme-distribuite/servere/jetty-base"
+# shellcheck source=../scripts/common.sh
+. "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/scripts/common.sh"
 
-cd "$PROJECT_DIR"
-mvn clean package
-
-mkdir -p "$JETTY_BASE"
-if [ ! -f "$JETTY_BASE/start.d/ee10-deploy.ini" ]; then
-    cd "$JETTY_BASE"
-    java -jar "$JETTY_HOME/start.jar" --add-modules=http,ee10-deploy
+if [ "${SKIP_BUILD:-0}" != "1" ]; then
+    build_services stock-market-service
 fi
+ensure_jetty_base
 
 rm -rf "$JETTY_BASE/webapps/ROOT" \
        "$JETTY_BASE/webapps/ROOT.war" \
        "$JETTY_BASE/webapps/stock-market-service" \
        "$JETTY_BASE/webapps/stock-market-service.war"
-cp target/stock-market-service-1.0-SNAPSHOT.war \
+cp "$PROJECT_DIR/stock-market-service/target/stock-market-service.war" \
    "$JETTY_BASE/webapps/ROOT.war"
 
 echo "Deployed stock-market-service to $JETTY_BASE/webapps"
