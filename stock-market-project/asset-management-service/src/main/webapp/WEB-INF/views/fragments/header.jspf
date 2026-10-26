@@ -1,0 +1,27 @@
+<a class="skip-link" href="#main">Skip to content</a>
+<header class="top">
+    <div class="bar">
+        <a class="brand" href="${pageContext.request.contextPath}/">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"
+                 stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+                <path d="M3 17l6-6 4 4 8-8"/>
+                <path d="M15 7h6v6"/>
+            </svg>
+            Stock Portfolio
+        </a>
+        <nav class="nav" aria-label="Main">
+            <a href="${pageContext.request.contextPath}/" data-path="/">Overview</a>
+            <a href="${pageContext.request.contextPath}/live-market" data-path="/live-market">Live market</a>
+            <a href="${pageContext.request.contextPath}/assets" data-path="/assets">Assets</a>
+            <a href="${pageContext.request.contextPath}/portfolios" data-path="/portfolios">Portfolios</a>
+        </nav>
+        <div class="account">
+            <label class="sr-only" for="portfolio-select">Active portfolio</label>
+            <select id="portfolio-select" class="select" disabled>
+                <option value="">Loading&hellip;</option>
+            </select>
+            <span class="user" id="current-user"></span>
+            <button type="button" class="btn ghost sm" id="logout">Log out</button>
+        </div>
+    </div>
+</header>

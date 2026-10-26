@@ -1,37 +1,75 @@
 package com.example.asset.entity.database;
 
 import java.sql.Connection;
-import java.sql.DriverManager;
 import java.sql.SQLException;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
-public final class Database {
-    private Database() {
+import javax.sql.DataSource;
+
+import com.zaxxer.hikari.HikariConfig;
+import com.zaxxer.hikari.HikariDataSource;
+
+/** Owns one connection pool per database engine. */
+public final class Database implements AutoCloseable {
+    private final HikariDataSource postgres;
+    private final HikariDataSource sqlServer;
+    private final HikariDataSource oracle;
+
+    public Database(DataSourceConfig postgres, DataSourceConfig sqlServer, DataSourceConfig oracle) {
+        this.postgres = pool(postgres);
+        this.sqlServer = pool(sqlServer);
+        this.oracle = pool(oracle);
     }
 
-    public static Connection postgres() throws SQLException {
-        return connect("POSTGRES_URL", "jdbc:postgresql://localhost:5432/stock_market",
-                "POSTGRES_USER", "stock_app", "POSTGRES_PASSWORD", "stock_app_password");
+    public DataSource postgres() {
+        return postgres;
     }
 
-    public static Connection sqlServer() throws SQLException {
-        return connect("SQLSERVER_URL",
-                "jdbc:sqlserver://localhost:1433;databaseName=stock_market;encrypt=false",
-                "SQLSERVER_USER", "sa", "SQLSERVER_PASSWORD", "StockMarket_SA_123!");
+    public DataSource sqlServer() {
+        return sqlServer;
     }
 
-    public static Connection oracle() throws SQLException {
-        return connect("ORACLE_URL", "jdbc:oracle:thin:@localhost:1521/FREEPDB1",
-                "ORACLE_USER", "stock_app", "ORACLE_APP_PASSWORD", "stock_app_password");
+    public DataSource oracle() {
+        return oracle;
     }
 
-    private static Connection connect(String urlName, String urlDefault, String userName,
-            String userDefault, String passwordName, String passwordDefault) throws SQLException {
-        return DriverManager.getConnection(env(urlName, urlDefault), env(userName, userDefault),
-                env(passwordName, passwordDefault));
+    /** Returns whether each database answers a validation check. */
+    public Map<String, Boolean> ping() {
+        Map<String, Boolean> result = new LinkedHashMap<>();
+        result.put("postgres", isReachable(postgres));
+        result.put("sqlserver", isReachable(sqlServer));
+        result.put("oracle", isReachable(oracle));
+        return result;
     }
 
-    private static String env(String name, String fallback) {
-        String value = System.getenv(name);
-        return value == null || value.isBlank() ? fallback : value;
+    @Override
+    public void close() {
+        postgres.close();
+        sqlServer.close();
+        oracle.close();
+    }
+
+    private static boolean isReachable(DataSource dataSource) {
+        try (Connection connection = dataSource.getConnection()) {
+            return connection.isValid(2);
+        } catch (SQLException exception) {
+            return false;
+        }
+    }
+
+    private static HikariDataSource pool(DataSourceConfig config) {
+        HikariConfig hikari = new HikariConfig();
+        hikari.setPoolName(config.poolName());
+        hikari.setJdbcUrl(config.url());
+        hikari.setUsername(config.username());
+        hikari.setPassword(config.password());
+        hikari.setDriverClassName(config.driverClassName());
+        hikari.setMaximumPoolSize(5);
+        hikari.setMinimumIdle(1);
+        hikari.setConnectionTimeout(5_000);
+        // Start even if a database is still booting; connections are retried on demand.
+        hikari.setInitializationFailTimeout(-1);
+        return new HikariDataSource(hikari);
     }
 }

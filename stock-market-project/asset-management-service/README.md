@@ -1,51 +1,41 @@
 # Asset management service
 
-This is a minimal Jakarta Servlet WAR for Tomcat 11.
+Tomcat 11 WAR for portfolios, trading, and the web UI. It consumes stock prices from Kafka and
+stores data in PostgreSQL (users), SQL Server (portfolios and cash), and Oracle (trade ledger).
+See the [project README](../README.md) for the architecture, API, and security model.
 
-## Run with the Homebrew Tomcat
+## Layout
 
-```bash
-cd /home/alex/sisteme-distribuite/stock-market-project/asset-management-service
-mvn clean package
-
-export CATALINA_HOME="$(brew --prefix tomcat)/libexec"
-export CATALINA_BASE="/home/alex/sisteme-distribuite/servere/tomcat-base"
-rm -rf "$CATALINA_BASE/webapps/ROOT" "$CATALINA_BASE/webapps/ROOT.war"
-cp target/asset-management-service.war "$CATALINA_BASE/webapps/ROOT.war"
-"$(brew --prefix tomcat)/bin/catalina" run
+```text
+src/main/java/com/example/asset/
+  application/   ApplicationContext (wiring), ApplicationLifecycle (startup/shutdown), AppConfig
+  boundary/      SecurityFilter, PageServlet, HealthServlet, DashboardServlet
+    api/         /api/session, /api/users, /api/portfolios, /api/trades, /api/market (+ SSE)
+    auth/        /auth/login, /auth/register, /auth/logout
+    http/        Json, ApiServlet (error mapping), SessionSupport
+    messaging/   StockPriceConsumer (Kafka)
+    stream/      MarketStreamHub (Server-Sent Events fan-out)
+  control/       AuthControl, UserControl, PortfolioControl, TradingControl, MarketControl, ...
+  entity/        records and JDBC repositories; database/Database owns the HikariCP pools
+src/main/webapp/
+  auth.html                      public login and registration page
+  static/css/app.css             shared design system (light and dark)
+  static/js/app.js               shared helpers; one script per page
+  WEB-INF/views/*.jsp            pages, reachable only through PageServlet
+  WEB-INF/views/fragments/*.jspf shared head, header, and footer
 ```
 
-Open the home page at <http://localhost:8081/>.
+## Build and deploy
 
-From there, open <http://localhost:8081/assets> to view available assets or
-<http://localhost:8081/live-market> to view the live market and manage the
-portfolio.
-
-Open the live market at
-<http://localhost:8081/live-market>. It displays the
-latest stock prices received from Kafka and refreshes every five seconds.
-The page receives price changes through a live Server-Sent Events connection,
-so it updates when the asset-management service consumes a Kafka event.
-
-The live market starts with a $1,000.00 USD cash balance and no holdings.
-Search the Kafka-received market catalog and buy fractional shares. The
-Holdings can also be sold in full or in fractional quantities at the latest
-server-side Kafka price. The account is persisted in
-`asset-management-service/src/main/resources/data/account.json`. Override the
-location with
-`ACCOUNT_DATA_FILE`).
-
-The deploy script removes legacy context deployments and cached JSP output so
-Tomcat serves the current root deployment after application changes.
-
-The `/assets` servlet forwards the live portfolio data received from Kafka to
-the JSP at `src/main/webapp/WEB-INF/views/assets.jsp`. The JSP is under
-`WEB-INF`, so it can only be reached through the servlet.
-
-## Deploy
-
-From the project root:
+From `stock-market-project`:
 
 ```bash
 ./asset-management-service/deploy.sh
 ```
+
+This builds the module (and the shared contracts module), then copies the WAR to
+`$SERVERS_DIR/tomcat-base/webapps/ROOT.war`. Run the unit tests with
+`mvn -pl asset-management-service -am verify`.
+
+The service reads its configuration from environment variables; `run.sh` exports the values from
+`.env` before starting Tomcat.

@@ -1,51 +1,127 @@
 package com.example.asset.entity.trade;
 
-import com.example.asset.entity.database.Database;
 import java.math.BigDecimal;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
+import javax.sql.DataSource;
+
+import com.example.asset.entity.database.Jdbc;
+
+/** Trades live in Oracle; {@code portfolio_id} is a logical reference to SQL Server portfolios. */
 public final class JdbcTradeRepository implements TradeRepository {
-    private static final String COLUMNS = "trade_id, portfolio_id, symbol, side, quantity, executed_at";
-    public Trade create(long portfolioId, String symbol, String side, BigDecimal quantity) {
-        try (var c = Database.oracle(); var s = c.prepareStatement(
-                "INSERT INTO trades (portfolio_id, symbol, side, quantity) VALUES (?, ?, ?, ?)",
-                java.sql.Statement.RETURN_GENERATED_KEYS)) {
-            s.setLong(1, portfolioId); s.setString(2, symbol); s.setString(3, side); s.setBigDecimal(4, quantity); s.executeUpdate();
-            try (var keys = s.getGeneratedKeys()) { keys.next(); return findById(keys.getLong(1)).orElseThrow(); }
-        } catch (SQLException e) { throw failure("creating trade", e); }
+    private static final String COLUMNS = "trade_id, portfolio_id, symbol, side, quantity, price, executed_at";
+
+    private final DataSource dataSource;
+
+    public JdbcTradeRepository(DataSource dataSource) {
+        this.dataSource = dataSource;
     }
-    public Optional<Trade> findById(long id) { return query("SELECT " + COLUMNS + " FROM trades WHERE trade_id = ?", id); }
+
+    @Override
+    public Trade create(long portfolioId, String symbol, TradeSide side, BigDecimal quantity, BigDecimal price) {
+        String sql = "INSERT INTO trades (portfolio_id, symbol, side, quantity, price) VALUES (?, ?, ?, ?, ?)";
+        // Oracle returns a ROWID for RETURN_GENERATED_KEYS, so the identity column is requested by name.
+        try (var connection = dataSource.getConnection();
+                var statement = connection.prepareStatement(sql, new String[] {"TRADE_ID"})) {
+            statement.setLong(1, portfolioId);
+            statement.setString(2, symbol);
+            statement.setString(3, side.name());
+            statement.setBigDecimal(4, quantity);
+            statement.setBigDecimal(5, price);
+            statement.executeUpdate();
+            long tradeId = generatedTradeId(statement);
+            return findById(tradeId).orElseThrow(
+                    () -> new IllegalStateException("Trade " + tradeId + " was not found after insert"));
+        } catch (SQLException exception) {
+            throw Jdbc.failure("recording trade", exception);
+        }
+    }
+
+    private static long generatedTradeId(PreparedStatement statement) throws SQLException {
+        try (var keys = statement.getGeneratedKeys()) {
+            if (!keys.next()) {
+                throw new SQLException("Oracle did not return the generated trade_id");
+            }
+            return keys.getLong(1);
+        }
+    }
+
+    @Override
+    public Optional<Trade> findById(long id) {
+        try (var connection = dataSource.getConnection();
+                var statement = connection.prepareStatement("SELECT " + COLUMNS + " FROM trades WHERE trade_id = ?")) {
+            statement.setLong(1, id);
+            try (var result = statement.executeQuery()) {
+                return result.next() ? Optional.of(map(result)) : Optional.empty();
+            }
+        } catch (SQLException exception) {
+            throw Jdbc.failure("reading trade", exception);
+        }
+    }
+
+    @Override
     public List<Trade> findByPortfolioId(long portfolioId) {
-        List<Trade> result = new ArrayList<>();
-        try (var c = Database.oracle(); var s = c.prepareStatement(
-                "SELECT " + COLUMNS + " FROM trades WHERE portfolio_id = ? ORDER BY executed_at DESC")) {
-            s.setLong(1, portfolioId); try (var r = s.executeQuery()) { while (r.next()) result.add(map(r)); return result; }
-        } catch (SQLException e) { throw failure("reading trades", e); }
+        try (var connection = dataSource.getConnection(); var statement = connection.prepareStatement(
+                "SELECT " + COLUMNS + " FROM trades WHERE portfolio_id = ? ORDER BY executed_at DESC, trade_id DESC")) {
+            statement.setLong(1, portfolioId);
+            try (var result = statement.executeQuery()) {
+                List<Trade> trades = new ArrayList<>();
+                while (result.next()) {
+                    trades.add(map(result));
+                }
+                return trades;
+            }
+        } catch (SQLException exception) {
+            throw Jdbc.failure("reading trades", exception);
+        }
     }
-    public Trade update(long id, String symbol, String side, BigDecimal quantity) {
-        try (var c = Database.oracle(); var s = c.prepareStatement(
-                "UPDATE trades SET symbol = ?, side = ?, quantity = ? WHERE trade_id = ?")) {
-            s.setString(1, symbol); s.setString(2, side); s.setBigDecimal(3, quantity); s.setLong(4, id);
-            if (s.executeUpdate() == 0) throw new IllegalArgumentException("Trade not found: " + id);
-            return findById(id).orElseThrow();
-        } catch (SQLException e) { throw failure("updating trade", e); }
+
+    @Override
+    public Optional<Trade> updateQuantity(long id, BigDecimal quantity) {
+        try (var connection = dataSource.getConnection();
+                var statement = connection.prepareStatement("UPDATE trades SET quantity = ? WHERE trade_id = ?")) {
+            statement.setBigDecimal(1, quantity);
+            statement.setLong(2, id);
+            if (statement.executeUpdate() == 0) {
+                return Optional.empty();
+            }
+        } catch (SQLException exception) {
+            throw Jdbc.failure("updating trade", exception);
+        }
+        return findById(id);
     }
+
+    @Override
     public void delete(long id) {
-        try (var c = Database.oracle(); var s = c.prepareStatement("DELETE FROM trades WHERE trade_id = ?")) {
-            s.setLong(1, id); s.executeUpdate();
-        } catch (SQLException e) { throw failure("deleting trade", e); }
+        try (var connection = dataSource.getConnection();
+                var statement = connection.prepareStatement("DELETE FROM trades WHERE trade_id = ?")) {
+            statement.setLong(1, id);
+            statement.executeUpdate();
+        } catch (SQLException exception) {
+            throw Jdbc.failure("deleting trade", exception);
+        }
     }
-    private Optional<Trade> query(String sql, long id) {
-        try (var c = Database.oracle(); var s = c.prepareStatement(sql)) {
-            s.setLong(1, id); try (var r = s.executeQuery()) { return r.next() ? Optional.of(map(r)) : Optional.empty(); }
-        } catch (SQLException e) { throw failure("reading trade", e); }
+
+    @Override
+    public void deleteByPortfolioId(long portfolioId) {
+        try (var connection = dataSource.getConnection();
+                var statement = connection.prepareStatement("DELETE FROM trades WHERE portfolio_id = ?")) {
+            statement.setLong(1, portfolioId);
+            statement.executeUpdate();
+        } catch (SQLException exception) {
+            throw Jdbc.failure("deleting trades", exception);
+        }
     }
-    private Trade map(java.sql.ResultSet r) throws SQLException {
-        return new Trade(r.getLong("trade_id"), r.getLong("portfolio_id"), r.getString("symbol"), r.getString("side"),
-                r.getBigDecimal("quantity"), r.getObject("executed_at", java.time.OffsetDateTime.class));
+
+    private static Trade map(ResultSet result) throws SQLException {
+        return new Trade(result.getLong("trade_id"), result.getLong("portfolio_id"), result.getString("symbol"),
+                TradeSide.valueOf(result.getString("side")), result.getBigDecimal("quantity"),
+                result.getBigDecimal("price"), result.getObject("executed_at", OffsetDateTime.class));
     }
-    private IllegalStateException failure(String action, SQLException e) { return new IllegalStateException("Database error while " + action, e); }
 }

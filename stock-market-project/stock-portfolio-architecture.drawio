@@ -5,7 +5,7 @@
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
 
-        <mxCell id="account" value="&lt;b&gt;account.json&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:11px&quot;&gt;Persistent portfolio state&lt;/font&gt;" style="shape=note;size=18;whiteSpace=wrap;html=1;fillColor=#F1EFE8;strokeColor=#5F5E5A;fontColor=#2C2C2A;fontSize=13;strokeWidth=1.5;" vertex="1" parent="1">
+        <mxCell id="account" value="&lt;b&gt;Databases&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:11px&quot;&gt;PostgreSQL: users&lt;br&gt;SQL Server: portfolios, cash&lt;br&gt;Oracle: trade ledger&lt;/font&gt;" style="shape=note;size=18;whiteSpace=wrap;html=1;fillColor=#F1EFE8;strokeColor=#5F5E5A;fontColor=#2C2C2A;fontSize=13;strokeWidth=1.5;" vertex="1" parent="1">
           <mxGeometry x="680" y="50" width="180" height="70" as="geometry" />
         </mxCell>
 
@@ -41,7 +41,7 @@
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
 
-        <mxCell id="e-file" value="Read / write&lt;br&gt;portfolio state" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;startArrow=classic;startFill=1;endArrow=classic;endFill=1;dashed=1;dashPattern=6 4;strokeColor=#888780;strokeWidth=1.5;fontSize=11;fontColor=#444441;labelBackgroundColor=default;" edge="1" parent="1" source="tomcat" target="account">
+        <mxCell id="e-file" value="JDBC (HikariCP)&lt;br&gt;cash first, then ledger" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;startArrow=classic;startFill=1;endArrow=classic;endFill=1;dashed=1;dashPattern=6 4;strokeColor=#888780;strokeWidth=1.5;fontSize=11;fontColor=#444441;labelBackgroundColor=default;" edge="1" parent="1" source="tomcat" target="account">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
 

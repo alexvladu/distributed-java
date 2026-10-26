@@ -1,12 +1,13 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-CATALINA_HOME="$(brew --prefix tomcat)/libexec"
-CATALINA_BASE="/home/alex/sisteme-distribuite/servere/tomcat-base"
+# shellcheck source=../scripts/common.sh
+. "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/scripts/common.sh"
 
-cd "$PROJECT_DIR"
-mvn clean package
+if [ "${SKIP_BUILD:-0}" != "1" ]; then
+    build_services asset-management-service
+fi
+ensure_tomcat_base
 
 rm -rf "$CATALINA_BASE/webapps/ROOT" \
        "$CATALINA_BASE/webapps/ROOT.war" \
@@ -14,7 +15,7 @@ rm -rf "$CATALINA_BASE/webapps/ROOT" \
        "$CATALINA_BASE/webapps/asset-management-service.war" \
        "$CATALINA_BASE/work/Catalina/localhost/ROOT" \
        "$CATALINA_BASE/work/Catalina/localhost/asset-management-service"
-cp target/asset-management-service.war \
+cp "$PROJECT_DIR/asset-management-service/target/asset-management-service.war" \
    "$CATALINA_BASE/webapps/ROOT.war"
 
 echo "Deployed asset-management-service to $CATALINA_BASE/webapps"

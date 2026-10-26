@@ -24,6 +24,7 @@ repository.
 - `portfolio_id` — primary key
 - `user_id` — logical reference to `postgresql.users.user_id`
 - `portfolio_name`
+- `cash_balance` — the portfolio's cash; a check constraint keeps it non-negative
 - `created_at`
 
 The application must verify that `user_id` exists in PostgreSQL before
@@ -39,6 +40,7 @@ transaction-oriented portfolio CRUD operations.
 - `symbol`
 - `side` (`BUY` or `SELL`)
 - `quantity`
+- `price` — execution price per share (null only for trades recorded before it existed)
 - `executed_at`
 
 The application validates the portfolio before inserting a trade. A trade
@@ -61,3 +63,18 @@ boundary per database (or three explicitly configured persistence units).
 The Servlet/JSP layer should call an application service that performs the
 cross-database read; it should not issue SQL directly. Cross-database writes
 should validate in dependency order and report partial failures explicitly.
+
+## Implementation
+
+The asset-management service implements this model with one JDBC repository
+and one HikariCP pool per database, called only from the control layer:
+
+- A market order moves cash in SQL Server with a conditional update that
+  cannot make the balance negative, then inserts the trade in Oracle. If the
+  insert fails, the cash movement is reversed (a compensating action).
+- Trade corrections and voids settle the cash difference at the original
+  price and are refused if a later sale would exceed the shares held.
+- Deleting a portfolio removes the SQL Server row first and then its Oracle
+  trades; deleting a user removes portfolios and trades before the
+  PostgreSQL identity.
+- Holdings and cost basis are derived from the trade ledger.
