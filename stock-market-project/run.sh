@@ -16,14 +16,14 @@ if ! flock -n 9; then
 fi
 printf '%s\n' "$$" >"$RUN_PID_FILE"
 
-TOMCAT_LOG="/tmp/asset-management-service-tomcat.log"
+TOMEE_LOG="/tmp/asset-management-service-tomee.log"
 JETTY_LOG="/tmp/stock-market-service-jetty.log"
 KAFKA_TOPIC="${KAFKA_TOPIC:-stock-prices}"
 
 cleanup() {
     trap - TERM INT EXIT
     rm -f "$RUN_PID_FILE"
-    [ -n "${TOMCAT_PID:-}" ] && kill "$TOMCAT_PID" 2>/dev/null || true
+    [ -n "${TOMEE_PID:-}" ] && kill "$TOMEE_PID" 2>/dev/null || true
     [ -n "${JETTY_PID:-}" ] && kill "$JETTY_PID" 2>/dev/null || true
     docker compose -f "$COMPOSE_FILE" down
 }
@@ -45,7 +45,7 @@ wait_for_health() {
             echo "$name is healthy: $url"
             return 0
         fi
-        if ! kill -0 "$TOMCAT_PID" 2>/dev/null || ! kill -0 "$JETTY_PID" 2>/dev/null; then
+        if ! kill -0 "$TOMEE_PID" 2>/dev/null || ! kill -0 "$JETTY_PID" 2>/dev/null; then
             return 0
         fi
         sleep 2
@@ -73,8 +73,8 @@ build_services asset-management-service,stock-market-service
 SKIP_BUILD=1 "$PROJECT_DIR/asset-management-service/deploy.sh"
 SKIP_BUILD=1 "$PROJECT_DIR/stock-market-service/deploy.sh"
 
-"$(brew --prefix tomcat)/bin/catalina" run >"$TOMCAT_LOG" 2>&1 &
-TOMCAT_PID=$!
+"$CATALINA_HOME/bin/catalina.sh" run >"$TOMEE_LOG" 2>&1 &
+TOMEE_PID=$!
 
 (cd "$JETTY_BASE" && exec java -jar "$JETTY_HOME/start.jar" jetty.http.port="$JETTY_PORT") >"$JETTY_LOG" 2>&1 &
 JETTY_PID=$!
@@ -91,17 +91,17 @@ echo "Kafka:       localhost:9092 (topic: $KAFKA_TOPIC)"
 echo "PostgreSQL:  localhost:${POSTGRES_PORT:-5432} (database: stock_market)"
 echo "SQL Server:  localhost:${MSSQL_PORT:-1433} (database: stock_market)"
 echo "OracleDB:    localhost:${ORACLE_PORT:-1521} (service: FREEPDB1)"
-echo "Logs:        $TOMCAT_LOG and $JETTY_LOG"
+echo "Logs:        $TOMEE_LOG and $JETTY_LOG"
 echo "Press Ctrl+C to stop both servers and the containers."
 
 set +e
-wait -n -p EXITED_PID "$TOMCAT_PID" "$JETTY_PID"
+wait -n -p EXITED_PID "$TOMEE_PID" "$JETTY_PID"
 EXIT_STATUS=$?
 set -e
 
-if [ "$EXITED_PID" = "$TOMCAT_PID" ]; then
-    EXITED_SERVICE="Tomcat"
-    EXITED_LOG="$TOMCAT_LOG"
+if [ "$EXITED_PID" = "$TOMEE_PID" ]; then
+    EXITED_SERVICE="TomEE"
+    EXITED_LOG="$TOMEE_LOG"
 else
     EXITED_SERVICE="Jetty"
     EXITED_LOG="$JETTY_LOG"

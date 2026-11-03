@@ -1,7 +1,7 @@
 # Stock market project
 
 A distributed stock-trading application built with plain Jakarta Servlets: a price simulator on
-Jetty, a portfolio service on Tomcat, Kafka between them, and data split across PostgreSQL,
+Jetty, a portfolio service on Apache TomEE Plus, Kafka between them, and data split across PostgreSQL,
 SQL Server, and Oracle.
 
 ```mermaid
@@ -10,7 +10,7 @@ flowchart LR
     subgraph Jetty [Jetty 12 :8082]
         Market[stock-market-service<br/>simulator + publisher]
     end
-    subgraph Tomcat [Tomcat 11 :8081]
+    subgraph TomEE [TomEE Plus 10.2 :8081]
         Asset[asset-management-service]
     end
     Market -- "StockPriceEvent (key = symbol)" --> Kafka[(Kafka<br/>stock-prices, compacted)]
@@ -24,7 +24,7 @@ flowchart LR
 | --- | --- |
 | `stock-market-contracts` | The Kafka message `StockPriceEvent` and its Jackson codec, shared by both services. |
 | `stock-market-service` | Jetty WAR. Simulates five stocks and publishes every price change. `GET /health`. |
-| `asset-management-service` | Tomcat WAR. Consumes prices, runs portfolios and trading, serves the UI and API. |
+| `asset-management-service` | TomEE Plus WAR. Consumes prices, runs portfolios and trading, serves the UI and API. |
 | `database-migrations` | Flyway migrations for the three databases; provisions the SQL Server application login. |
 
 The asset-management service follows Boundary–Control–Entity:
@@ -36,7 +36,7 @@ The asset-management service follows Boundary–Control–Entity:
 
 ## Run locally
 
-Requirements: JDK 21, Maven, Docker, and Homebrew `tomcat` and `jetty`.
+Requirements: JDK 21, Maven, Docker, and Homebrew `tomee-plus` and `jetty`.
 
 ```bash
 ./run.sh
@@ -47,10 +47,10 @@ Requirements: JDK 21, Maven, Docker, and Homebrew `tomcat` and `jetty`.
 1. creates `.env` from `.env.example` on the first run (development values; `.env` is git-ignored);
 2. starts Kafka, PostgreSQL, SQL Server, and Oracle, and waits until they are healthy;
 3. applies the Flyway migrations and creates the compacted `stock-prices` topic;
-4. builds both WARs once, deploys them as `ROOT.war`, and starts Tomcat and Jetty;
+4. builds both WARs once, deploys them as `ROOT.war`, and starts TomEE Plus and Jetty;
 5. waits for both `/health` endpoints and prints the URLs.
 
-The Tomcat and Jetty base directories default to `<repository>/servere/tomcat-base` and
+The TomEE Plus and Jetty base directories default to `<repository>/servere/tomee-base` and
 `<repository>/servere/jetty-base` and are created if missing. Set `SERVERS_DIR` (in `.env` or the
 shell) to use another location. Press `Ctrl+C` to stop everything, or run `./stop.sh` from another
 terminal.
@@ -143,7 +143,7 @@ curl -b jar -H 'Content-Type: application/json' -H 'X-Requested-With: XMLHttpReq
 | `KAFKA_BOOTSTRAP_SERVERS`, `KAFKA_TOPIC` | `localhost:9092`, `stock-prices` | both services |
 | `SERVERS_DIR` | `<repository>/servere` | scripts |
 
-The asset service refuses to start if a required variable is missing and names it in the Tomcat log.
+The asset service refuses to start if a required variable is missing and names it in the TomEE log.
 
 ## Kafka contract
 

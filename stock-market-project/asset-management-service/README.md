@@ -1,6 +1,6 @@
 # Asset management service
 
-Tomcat 11 WAR for portfolios, trading, and the web UI. It consumes stock prices from Kafka and
+Apache TomEE Plus 10.2 WAR for portfolios, trading, and the web UI. It consumes stock prices from Kafka and
 stores data in PostgreSQL (users), SQL Server (portfolios and cash), and Oracle (trade ledger).
 See the [project README](../README.md) for the architecture, API, and security model.
 
@@ -34,8 +34,8 @@ From `stock-market-project`:
 ```
 
 This builds the module (and the shared contracts module), then copies the WAR to
-`$SERVERS_DIR/tomcat-base/webapps/ROOT.war`. Run the unit tests with
+`$SERVERS_DIR/tomee-base/webapps/ROOT.war`. Run the unit tests with
 `mvn -pl asset-management-service -am verify`.
 
 The service reads its configuration from environment variables; `run.sh` exports the values from
-`.env` before starting Tomcat.
+`.env` before starting TomEE.

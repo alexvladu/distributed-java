@@ -7,7 +7,7 @@ set -euo pipefail
 if [ "${SKIP_BUILD:-0}" != "1" ]; then
     build_services asset-management-service
 fi
-ensure_tomcat_base
+ensure_tomee_base
 
 rm -rf "$CATALINA_BASE/webapps/ROOT" \
        "$CATALINA_BASE/webapps/ROOT.war" \

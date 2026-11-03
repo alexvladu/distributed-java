@@ -75,8 +75,8 @@ time. The three databases demonstrate distributed data ownership, where
 references between engines are logical and consistency is enforced by the
 application.
 
-The solution uses Java 21, Jakarta Servlet 6, Jetty 12 for the producer, and
-Tomcat 11 for the asset-management service. Both services are packaged as WAR
+The solution uses Java 21, Jakarta Servlet 6.0, Jetty 12 for the producer, and
+Apache TomEE Plus 10.2 for the asset-management service. Both services are packaged as WAR
 archives by a multi-module Maven build. A shared module,
 \emph{stock-market-contracts}, defines the Kafka message so that both services
 always agree on its format.
@@ -94,7 +94,7 @@ always agree on its format.
 
 \noindent
 Figure~\ref{fig:architecture} summarizes the main components. The browser
-communicates only with the Tomcat-hosted asset-management service. The
+communicates only with the TomEE-hosted asset-management service. The
 Jetty-hosted stock-market service publishes prices to Kafka, and the
 asset-management service consumes them and reads and writes the three
 databases.
@@ -110,7 +110,7 @@ Kafka & 9092 & Transports price events on the compacted \code{stock-prices}
 topic.\\
 Stock-market service & 8082 & Runs on Jetty, generates prices, publishes
 events, and exposes \code{/health}.\\
-Asset-management service & 8081 & Runs on Tomcat, consumes events, executes
+Asset-management service & 8081 & Runs on TomEE Plus, consumes events, executes
 trades, and serves the web interface, the JSON API, and \code{/health}.\\
 PostgreSQL & 5432 & \code{users} and \code{user\_credentials}.\\
 SQL Server & 1433 & \code{portfolios}, including \code{cash\_balance}.\\
@@ -141,7 +141,7 @@ immediately after every restart.
     migrations and provisions a least-privilege SQL Server login for the
     application.
     \item The launch script creates the compacted topic, builds both WAR
-    archives, deploys them as \code{ROOT.war}, starts Tomcat and Jetty, and
+    archives, deploys them as \code{ROOT.war}, starts TomEE Plus and Jetty, and
     waits for both \code{/health} endpoints.
     \item The market service publishes a \class{StockPriceEvent} for every
     stock, keyed by symbol.
@@ -231,7 +231,7 @@ discover the identifiers of other users' portfolios or trades.
 \subsection{Configuration and dependencies}
 
 The system requires JDK 21, Maven, Docker with Docker Compose, and the
-Homebrew \code{tomcat} and \code{jetty} packages. On the first run,
+Homebrew \code{tomee-plus} and \code{jetty} packages. On the first run,
 \code{run.sh} copies \code{.env.example} to \code{.env}, which is ignored by
 Git, and exports its values to both servers.
 
@@ -256,13 +256,13 @@ used only by the migrations.\\
 \code{ORACLE\_APP\_PASSWORD} & required & Oracle password.\\
 \code{KAFKA\_BOOTSTRAP\_SERVERS} & \code{localhost:9092} & Kafka broker.\\
 \code{KAFKA\_TOPIC} & \code{stock-prices} & Event topic.\\
-\code{SERVERS\_DIR} & \code{<repository>/servere} & Location of the Tomcat
+\code{SERVERS\_DIR} & \code{<repository>/servere} & Location of the TomEE
 and Jetty base directories.\\
 \bottomrule
 \end{longtable}
 
 If a required variable is missing, the asset-management service does not
-start and the Tomcat log names the variable.
+start and the TomEE log names the variable.
 
 A market message is a JSON object with \code{symbol}, \code{name},
 \code{price}, \code{quantity}, and \code{timestamp}, keyed by symbol. The
@@ -282,9 +282,9 @@ The root \code{pom.xml} builds the modules \code{stock-market-contracts},
 the unit tests.
 
 \code{asset-management-service/deploy.sh} builds the service together with
-the contracts module, creates the Tomcat base directory if it does not exist,
+the contracts module, creates the TomEE base directory if it does not exist,
 removes previous deployments and cached JSP work files, and copies
-\code{asset-management-service.war} to the Tomcat \code{webapps} directory as
+\code{asset-management-service.war} to the TomEE \code{webapps} directory as
 \code{ROOT.war}. \code{stock-market-service/deploy.sh} does the same for
 Jetty, enabling the \code{http} and \code{ee10-deploy} modules when the base
 directory is created.
@@ -295,9 +295,9 @@ The complete local deployment is started from the project directory with:
 ./run.sh
 \end{verbatim}
 
-Tomcat serves the asset-management service on port 8081 and Jetty serves the
+TomEE Plus serves the asset-management service on port 8081 and Jetty serves the
 stock-market service on port 8082. Their logs are written to
-\code{/tmp/asset-management-service-tomcat.log} and
+\code{/tmp/asset-management-service-tomee.log} and
 \code{/tmp/stock-market-service-jetty.log}. Pressing \code{Ctrl+C} stops both
 servers and the containers; \code{./stop.sh} does the same from another
 terminal.
@@ -445,7 +445,7 @@ provided by Java libraries and by the processes started by the scripts:
 
 \begin{itemize}
     \item TCP/IP through the Kafka client, the JDBC drivers, and the Jetty and
-    Tomcat HTTP servers;
+    TomEE Plus HTTP servers;
     \item platform threads for the Kafka consumer and the simulator, and
     virtual threads for the per-browser event queues;
     \item asynchronous servlet requests (\code{AsyncContext}) for long-lived
@@ -453,7 +453,7 @@ provided by Java libraries and by the processes started by the scripts:
     \item HikariCP connection pools, Jackson for JSON, and Flyway for schema
     migrations;
     \item external processes started by the shell scripts: Docker Compose,
-    Maven, Tomcat, and Jetty;
+    Maven, TomEE Plus, and Jetty;
     \item controlled shutdown through Kafka \code{wakeup()}, executor
     shutdown, and closing the connection pools.
 \end{itemize}
@@ -519,10 +519,10 @@ T6 & Partial sale & Cash and holdings are updated; average cost is unchanged
 T7 & Insufficient cash or shares & HTTP 400; nothing changes & JSON
 response\\
 T8 & Another user's portfolio & HTTP 404 & \code{curl}\\
-T9 & Restart Tomcat & Quotes are available immediately; holdings are
+T9 & Restart TomEE & Quotes are available immediately; holdings are
 unchanged & browser\\
 T10 & Oracle unavailable during an order & HTTP 503; cash is unchanged &
-Tomcat log\\
+TomEE log\\
 T11 & Controlled shutdown & Threads, pools, and Kafka clients close cleanly &
 \code{Ctrl+C} and logs\\
 \bottomrule
