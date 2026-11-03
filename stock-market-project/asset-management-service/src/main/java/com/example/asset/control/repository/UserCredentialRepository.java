@@ -1,10 +1,13 @@
-package com.example.asset.entity.auth;
+package com.example.asset.control.repository;
 
-import java.time.OffsetDateTime;
 import java.util.Optional;
 
+import com.example.asset.entity.auth.Credential;
 import com.example.asset.entity.user.User;
 
+import jakarta.ejb.Local;
+
+@Local
 public interface UserCredentialRepository {
     /** Creates the user and its credentials atomically. */
     User createAccount(String username, String email, String passwordHash);
@@ -14,8 +17,4 @@ public interface UserCredentialRepository {
     void recordFailedAttempt(long userId);
 
     void recordSuccessfulLogin(long userId);
-
-    record Credential(long userId, String username, String passwordHash, int failedAttempts,
-            OffsetDateTime lockedUntil) {
-    }
 }

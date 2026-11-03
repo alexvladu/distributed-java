@@ -1,4 +1,4 @@
-package com.example.asset.entity.auth;
+package com.example.asset.control.repository;
 
 import java.sql.Connection;
 import java.sql.SQLException;
@@ -7,16 +7,26 @@ import java.util.Optional;
 
 import javax.sql.DataSource;
 
-import com.example.asset.entity.database.Jdbc;
-import com.example.asset.entity.user.JdbcUserRepository;
+import com.example.asset.entity.auth.Credential;
 import com.example.asset.entity.user.User;
 
-/** Credentials live in PostgreSQL next to the users table. */
-public final class JdbcUserCredentialRepository implements UserCredentialRepository {
-    private final DataSource dataSource;
+import jakarta.annotation.PostConstruct;
+import jakarta.ejb.EJB;
+import jakarta.ejb.Stateless;
+import jakarta.ejb.TransactionManagement;
+import jakarta.ejb.TransactionManagementType;
 
-    public JdbcUserCredentialRepository(DataSource dataSource) {
-        this.dataSource = dataSource;
+/** Credentials live in PostgreSQL next to the users table. */
+@Stateless
+@TransactionManagement(TransactionManagementType.BEAN)
+public class JdbcUserCredentialRepository implements UserCredentialRepository {
+    @EJB
+    private Database database;
+    private DataSource dataSource;
+
+    @PostConstruct
+    void init() {
+        dataSource = database.postgres();
     }
 
     @Override

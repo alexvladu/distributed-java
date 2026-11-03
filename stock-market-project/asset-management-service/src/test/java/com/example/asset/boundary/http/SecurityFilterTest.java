@@ -1,4 +1,4 @@
-package com.example.asset.boundary;
+package com.example.asset.boundary.http;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;

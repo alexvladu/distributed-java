@@ -1,4 +1,4 @@
-package com.example.asset.entity.database;
+package com.example.asset.control.repository;
 
 import java.sql.Connection;
 import java.sql.SQLException;
@@ -7,19 +7,39 @@ import java.util.Map;
 
 import javax.sql.DataSource;
 
+import com.example.asset.application.AppConfig;
+import com.example.asset.application.DataSourceConfig;
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 
-/** Owns one connection pool per database engine. */
-public final class Database implements AutoCloseable {
-    private final HikariDataSource postgres;
-    private final HikariDataSource sqlServer;
-    private final HikariDataSource oracle;
+import jakarta.annotation.PostConstruct;
+import jakarta.annotation.PreDestroy;
+import jakarta.ejb.ConcurrencyManagement;
+import jakarta.ejb.ConcurrencyManagementType;
+import jakarta.ejb.Singleton;
+import jakarta.ejb.Startup;
+import jakarta.ejb.TransactionManagement;
+import jakarta.ejb.TransactionManagementType;
 
-    public Database(DataSourceConfig postgres, DataSourceConfig sqlServer, DataSourceConfig oracle) {
-        this.postgres = pool(postgres);
-        this.sqlServer = pool(sqlServer);
-        this.oracle = pool(oracle);
+/**
+ * Owns one connection pool per database engine; created at deployment so missing settings stop the deploy.
+ * JTA would not enlist these pools, so every bean uses bean-managed (local JDBC) transactions.
+ */
+@Singleton
+@Startup
+@ConcurrencyManagement(ConcurrencyManagementType.BEAN)
+@TransactionManagement(TransactionManagementType.BEAN)
+public class Database {
+    private HikariDataSource postgres;
+    private HikariDataSource sqlServer;
+    private HikariDataSource oracle;
+
+    @PostConstruct
+    void start() {
+        AppConfig config = AppConfig.fromEnvironment();
+        postgres = pool(config.postgres());
+        sqlServer = pool(config.sqlServer());
+        oracle = pool(config.oracle());
     }
 
     public DataSource postgres() {
@@ -43,8 +63,8 @@ public final class Database implements AutoCloseable {
         return result;
     }
 
-    @Override
-    public void close() {
+    @PreDestroy
+    void close() {
         postgres.close();
         sqlServer.close();
         oracle.close();

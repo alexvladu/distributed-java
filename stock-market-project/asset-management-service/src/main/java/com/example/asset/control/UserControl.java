@@ -1,14 +1,26 @@
 package com.example.asset.control;
 
+import com.example.asset.control.repository.UserRepository;
 import com.example.asset.entity.portfolio.Portfolio;
 import com.example.asset.entity.user.User;
-import com.example.asset.entity.user.UserRepository;
 
-public final class UserControl {
-    private final UserRepository users;
-    private final PortfolioControl portfolios;
+import jakarta.ejb.EJB;
+import jakarta.ejb.Stateless;
+import jakarta.ejb.TransactionManagement;
+import jakarta.ejb.TransactionManagementType;
 
-    public UserControl(UserRepository users, PortfolioControl portfolios) {
+@Stateless
+@TransactionManagement(TransactionManagementType.BEAN)
+public class UserControl {
+    @EJB
+    private UserRepository users;
+    @EJB
+    private PortfolioControl portfolios;
+
+    public UserControl() {
+    }
+
+    UserControl(UserRepository users, PortfolioControl portfolios) {
         this.users = users;
         this.portfolios = portfolios;
     }

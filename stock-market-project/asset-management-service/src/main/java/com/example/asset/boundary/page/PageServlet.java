@@ -1,4 +1,4 @@
-package com.example.asset.boundary;
+package com.example.asset.boundary.page;
 
 import java.io.IOException;
 import java.util.Map;

@@ -1,4 +1,4 @@
-package com.example.asset.entity.trade;
+package com.example.asset.control.repository;
 
 import java.math.BigDecimal;
 import java.sql.PreparedStatement;
@@ -11,16 +11,28 @@ import java.util.Optional;
 
 import javax.sql.DataSource;
 
-import com.example.asset.entity.database.Jdbc;
+import com.example.asset.entity.trade.Trade;
+import com.example.asset.entity.trade.TradeSide;
+
+import jakarta.annotation.PostConstruct;
+import jakarta.ejb.EJB;
+import jakarta.ejb.Stateless;
+import jakarta.ejb.TransactionManagement;
+import jakarta.ejb.TransactionManagementType;
 
 /** Trades live in Oracle; {@code portfolio_id} is a logical reference to SQL Server portfolios. */
-public final class JdbcTradeRepository implements TradeRepository {
+@Stateless
+@TransactionManagement(TransactionManagementType.BEAN)
+public class JdbcTradeRepository implements TradeRepository {
     private static final String COLUMNS = "trade_id, portfolio_id, symbol, side, quantity, price, executed_at";
 
-    private final DataSource dataSource;
+    @EJB
+    private Database database;
+    private DataSource dataSource;
 
-    public JdbcTradeRepository(DataSource dataSource) {
-        this.dataSource = dataSource;
+    @PostConstruct
+    void init() {
+        dataSource = database.oracle();
     }
 
     @Override

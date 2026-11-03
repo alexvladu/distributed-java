@@ -8,7 +8,9 @@ import com.example.asset.boundary.http.ApiServlet;
 import com.example.asset.boundary.http.Json;
 import com.example.asset.boundary.http.SessionSupport;
 import com.example.asset.control.NotFoundException;
+import com.example.asset.control.TradingControl;
 
+import jakarta.ejb.EJB;
 import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -30,6 +32,9 @@ public final class TradeServlet extends ApiServlet {
     public record CorrectionRequest(BigDecimal quantity) {
     }
 
+    @EJB
+    private TradingControl trading;
+
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response) throws IOException {
         respond(request, response, () -> {
@@ -40,9 +45,9 @@ public final class TradeServlet extends ApiServlet {
                 if (portfolioId == null) {
                     throw new IllegalArgumentException("portfolioId is required");
                 }
-                Json.write(response, HttpServletResponse.SC_OK, app().trading().history(userId, id(portfolioId)));
+                Json.write(response, HttpServletResponse.SC_OK, trading.history(userId, id(portfolioId)));
             } else if (path.size() == 1) {
-                Json.write(response, HttpServletResponse.SC_OK, app().trading().trade(userId, id(path.get(0))));
+                Json.write(response, HttpServletResponse.SC_OK, trading.trade(userId, id(path.get(0))));
             } else {
                 notFound(response);
             }
@@ -61,7 +66,7 @@ public final class TradeServlet extends ApiServlet {
             if (body.portfolioId() == null) {
                 throw new IllegalArgumentException("portfolioId is required");
             }
-            Json.write(response, HttpServletResponse.SC_CREATED, app().trading().execute(
+            Json.write(response, HttpServletResponse.SC_CREATED, trading.execute(
                     userId, body.portfolioId(), body.symbol(), body.side(), body.quantity()));
         });
     }
@@ -73,7 +78,7 @@ public final class TradeServlet extends ApiServlet {
             long tradeId = requireSingleId(request);
             CorrectionRequest body = Json.read(request, CorrectionRequest.class);
             Json.write(response, HttpServletResponse.SC_OK,
-                    app().trading().correct(userId, tradeId, body.quantity()));
+                    trading.correct(userId, tradeId, body.quantity()));
         });
     }
 
@@ -81,7 +86,7 @@ public final class TradeServlet extends ApiServlet {
     protected void doDelete(HttpServletRequest request, HttpServletResponse response) throws IOException {
         respond(request, response, () -> {
             long userId = SessionSupport.requireUserId(request);
-            app().trading().voidTrade(userId, requireSingleId(request));
+            trading.voidTrade(userId, requireSingleId(request));
             response.setStatus(HttpServletResponse.SC_NO_CONTENT);
         });
     }

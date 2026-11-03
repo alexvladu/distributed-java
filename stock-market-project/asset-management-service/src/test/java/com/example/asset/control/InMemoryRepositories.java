@@ -12,14 +12,15 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 
-import com.example.asset.entity.auth.UserCredentialRepository;
+import com.example.asset.control.repository.PortfolioRepository;
+import com.example.asset.control.repository.TradeRepository;
+import com.example.asset.control.repository.UserCredentialRepository;
+import com.example.asset.control.repository.UserRepository;
+import com.example.asset.entity.auth.Credential;
 import com.example.asset.entity.portfolio.Portfolio;
-import com.example.asset.entity.portfolio.PortfolioRepository;
 import com.example.asset.entity.trade.Trade;
-import com.example.asset.entity.trade.TradeRepository;
 import com.example.asset.entity.trade.TradeSide;
 import com.example.asset.entity.user.User;
-import com.example.asset.entity.user.UserRepository;
 
 /** In-memory repositories that mimic the JDBC implementations' contracts. */
 final class InMemoryRepositories {

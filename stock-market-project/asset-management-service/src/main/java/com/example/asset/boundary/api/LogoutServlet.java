@@ -1,4 +1,4 @@
-package com.example.asset.boundary.auth;
+package com.example.asset.boundary.api;
 
 import java.io.IOException;
 

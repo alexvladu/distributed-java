@@ -7,8 +7,10 @@ import com.example.asset.boundary.http.ApiServlet;
 import com.example.asset.boundary.http.Json;
 import com.example.asset.boundary.http.SessionSupport;
 import com.example.asset.control.NotFoundException;
+import com.example.asset.control.UserControl;
 import com.example.asset.entity.user.User;
 
+import jakarta.ejb.EJB;
 import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -19,6 +21,9 @@ public final class UserServlet extends ApiServlet {
     public record ProfileRequest(String username, String email) {
     }
 
+    @EJB
+    private UserControl users;
+
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response) throws IOException {
         respond(request, response, () -> {
@@ -27,7 +32,7 @@ public final class UserServlet extends ApiServlet {
             if (path.size() > 1 || (path.size() == 1 && id(path.get(0)) != userId)) {
                 throw new NotFoundException("User not found");
             }
-            Json.write(response, HttpServletResponse.SC_OK, app().users().get(userId));
+            Json.write(response, HttpServletResponse.SC_OK, users.get(userId));
         });
     }
 
@@ -42,7 +47,7 @@ public final class UserServlet extends ApiServlet {
             long userId = SessionSupport.requireUserId(request);
             long id = requireSingleId(request);
             ProfileRequest body = Json.read(request, ProfileRequest.class);
-            User updated = app().users().update(userId, id, body.username(), body.email());
+            User updated = users.update(userId, id, body.username(), body.email());
             SessionSupport.updateUsername(request, updated.username());
             Json.write(response, HttpServletResponse.SC_OK, updated);
         });
@@ -52,7 +57,7 @@ public final class UserServlet extends ApiServlet {
     protected void doDelete(HttpServletRequest request, HttpServletResponse response) throws IOException {
         respond(request, response, () -> {
             long userId = SessionSupport.requireUserId(request);
-            app().users().delete(userId, requireSingleId(request));
+            users.delete(userId, requireSingleId(request));
             SessionSupport.logout(request);
             response.setStatus(HttpServletResponse.SC_NO_CONTENT);
         });

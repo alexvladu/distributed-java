@@ -10,31 +10,16 @@ import jakarta.servlet.SessionCookieConfig;
 import jakarta.servlet.SessionTrackingMode;
 import jakarta.servlet.annotation.WebListener;
 
+/** Session hardening; the EJB container creates and wires the beans. */
 @WebListener
 public final class ApplicationLifecycle implements ServletContextListener {
     private static final System.Logger LOG = System.getLogger(ApplicationLifecycle.class.getName());
     private static final int SESSION_TIMEOUT_MINUTES = 30;
 
-    private ApplicationContext application;
-
     @Override
     public void contextInitialized(ServletContextEvent event) {
-        ServletContext servletContext = event.getServletContext();
-        configureSessions(servletContext);
-        try {
-            application = ApplicationContext.start(AppConfig.fromEnvironment(), servletContext);
-            LOG.log(Level.INFO, "Asset management service started");
-        } catch (RuntimeException exception) {
-            LOG.log(Level.ERROR, "Asset management service failed to start: " + exception.getMessage(), exception);
-            throw exception;
-        }
-    }
-
-    @Override
-    public void contextDestroyed(ServletContextEvent event) {
-        if (application != null) {
-            application.close();
-        }
+        configureSessions(event.getServletContext());
+        LOG.log(Level.INFO, "Asset management service started");
     }
 
     private static void configureSessions(ServletContext servletContext) {

@@ -1,4 +1,4 @@
-package com.example.asset.boundary.messaging;
+package com.example.asset.boundary.stockevents;
 
 import java.lang.System.Logger.Level;
 import java.time.Duration;
@@ -11,6 +11,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import com.example.asset.application.AppConfig;
 import com.example.asset.control.MarketControl;
 import com.example.stock.contract.StockPriceEvent;
 import com.example.stock.contract.StockPriceEventCodec;
@@ -23,27 +24,45 @@ import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.errors.WakeupException;
 import org.apache.kafka.common.serialization.StringDeserializer;
 
+import jakarta.annotation.PostConstruct;
+import jakarta.annotation.PreDestroy;
+import jakarta.ejb.ConcurrencyManagement;
+import jakarta.ejb.ConcurrencyManagementType;
+import jakarta.ejb.DependsOn;
+import jakarta.ejb.EJB;
+import jakarta.ejb.Singleton;
+import jakarta.ejb.Startup;
+import jakarta.ejb.TransactionManagement;
+import jakarta.ejb.TransactionManagementType;
+
 /**
  * Inbound Kafka boundary. Every start replays the (compacted) topic from the beginning so the market view is
  * complete immediately, and a malformed message is skipped instead of stopping the consumer.
  */
-public final class StockPriceConsumer implements AutoCloseable {
+@Singleton
+@Startup
+@DependsOn("MarketControl")
+@ConcurrencyManagement(ConcurrencyManagementType.BEAN)
+@TransactionManagement(TransactionManagementType.BEAN)
+public class StockPriceConsumer {
     private static final System.Logger LOG = System.getLogger(StockPriceConsumer.class.getName());
     private static final Duration RETRY_DELAY = Duration.ofSeconds(5);
 
-    private final Properties properties;
-    private final String topic;
-    private final MarketControl market;
+    @EJB
+    private MarketControl market;
     private final AtomicBoolean running = new AtomicBoolean(true);
     private final CountDownLatch stopped = new CountDownLatch(1);
-    private final Thread worker;
+    private Properties properties;
+    private String topic;
+    private Thread worker;
     private volatile KafkaConsumer<String, String> consumer;
 
-    public StockPriceConsumer(String bootstrapServers, String topic, MarketControl market) {
-        this.topic = topic;
-        this.market = market;
+    @PostConstruct
+    void start() {
+        AppConfig config = AppConfig.fromEnvironment();
+        topic = config.kafkaTopic();
         properties = new Properties();
-        properties.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
+        properties.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, config.kafkaBootstrapServers());
         // A unique group per instance: every instance needs every price, and nothing is committed.
         properties.put(ConsumerConfig.GROUP_ID_CONFIG, "asset-management-service-" + UUID.randomUUID());
         properties.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, "false");
@@ -52,9 +71,8 @@ public final class StockPriceConsumer implements AutoCloseable {
         properties.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
         worker = new Thread(this::run, "stock-price-consumer");
         worker.setDaemon(true);
-    }
-
-    public void start() {
+        // Kafka loads classes by name through the context class loader; pin it to the application's.
+        worker.setContextClassLoader(StockPriceConsumer.class.getClassLoader());
         worker.start();
     }
 
@@ -117,8 +135,8 @@ public final class StockPriceConsumer implements AutoCloseable {
         }
     }
 
-    @Override
-    public void close() {
+    @PreDestroy
+    void close() {
         running.set(false);
         stopped.countDown();
         KafkaConsumer<String, String> active = consumer;

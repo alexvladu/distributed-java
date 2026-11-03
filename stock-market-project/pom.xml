@@ -20,6 +20,8 @@
         <maven.compiler.release>21</maven.compiler.release>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <jakarta.servlet.version>6.0.0</jakarta.servlet.version>
+        <jakarta.ejb.version>4.0.1</jakarta.ejb.version>
+        <jakarta.annotation.version>2.1.1</jakarta.annotation.version>
         <kafka.version>3.9.1</kafka.version>
         <jackson.version>2.18.3</jackson.version>
         <hikari.version>6.2.1</hikari.version>
@@ -54,6 +56,18 @@
                 <groupId>jakarta.servlet</groupId>
                 <artifactId>jakarta.servlet-api</artifactId>
                 <version>${jakarta.servlet.version}</version>
+                <scope>provided</scope>
+            </dependency>
+            <dependency>
+                <groupId>jakarta.ejb</groupId>
+                <artifactId>jakarta.ejb-api</artifactId>
+                <version>${jakarta.ejb.version}</version>
+                <scope>provided</scope>
+            </dependency>
+            <dependency>
+                <groupId>jakarta.annotation</groupId>
+                <artifactId>jakarta.annotation-api</artifactId>
+                <version>${jakarta.annotation.version}</version>
                 <scope>provided</scope>
             </dependency>
             <dependency>

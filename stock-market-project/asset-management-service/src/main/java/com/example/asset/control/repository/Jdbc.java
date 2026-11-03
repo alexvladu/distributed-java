@@ -1,4 +1,4 @@
-package com.example.asset.entity.database;
+package com.example.asset.control.repository;
 
 import java.sql.SQLException;
 

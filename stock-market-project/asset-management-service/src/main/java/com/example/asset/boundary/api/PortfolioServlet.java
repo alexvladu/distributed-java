@@ -7,8 +7,10 @@ import java.util.List;
 import com.example.asset.boundary.http.ApiServlet;
 import com.example.asset.boundary.http.Json;
 import com.example.asset.boundary.http.SessionSupport;
+import com.example.asset.control.PortfolioControl;
 import com.example.asset.control.TradingControl;
 
+import jakarta.ejb.EJB;
 import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -33,6 +35,11 @@ public final class PortfolioServlet extends ApiServlet {
     public record OrderRequest(String symbol, String side, BigDecimal quantity) {
     }
 
+    @EJB
+    private PortfolioControl portfolios;
+    @EJB
+    private TradingControl trading;
+
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response) throws IOException {
         respond(request, response, () -> {
@@ -40,13 +47,13 @@ public final class PortfolioServlet extends ApiServlet {
             List<String> path = segments(request);
             Object result;
             if (path.isEmpty()) {
-                result = app().portfolios().list(userId);
+                result = portfolios.list(userId);
             } else if (path.size() == 1) {
-                result = app().portfolios().get(userId, id(path.get(0)));
+                result = portfolios.get(userId, id(path.get(0)));
             } else if (path.size() == 2 && "account".equals(path.get(1))) {
-                result = app().trading().account(userId, id(path.get(0)));
+                result = trading.account(userId, id(path.get(0)));
             } else if (path.size() == 2 && "trades".equals(path.get(1))) {
-                result = app().trading().history(userId, id(path.get(0)));
+                result = trading.history(userId, id(path.get(0)));
             } else {
                 notFound(response);
                 return;
@@ -63,11 +70,11 @@ public final class PortfolioServlet extends ApiServlet {
             if (path.isEmpty()) {
                 PortfolioRequest body = Json.read(request, PortfolioRequest.class);
                 Json.write(response, HttpServletResponse.SC_CREATED,
-                        app().portfolios().create(userId, body.portfolioName()));
+                        portfolios.create(userId, body.portfolioName()));
             } else if (path.size() == 2 && "trades".equals(path.get(1))) {
                 long portfolioId = id(path.get(0));
                 OrderRequest body = Json.read(request, OrderRequest.class);
-                TradingControl.Execution execution = app().trading().execute(
+                TradingControl.Execution execution = trading.execute(
                         userId, portfolioId, body.symbol(), body.side(), body.quantity());
                 Json.write(response, HttpServletResponse.SC_CREATED, execution);
             } else {
@@ -87,7 +94,7 @@ public final class PortfolioServlet extends ApiServlet {
             }
             PortfolioRequest body = Json.read(request, PortfolioRequest.class);
             Json.write(response, HttpServletResponse.SC_OK,
-                    app().portfolios().rename(userId, id(path.get(0)), body.portfolioName()));
+                    portfolios.rename(userId, id(path.get(0)), body.portfolioName()));
         });
     }
 
@@ -100,7 +107,7 @@ public final class PortfolioServlet extends ApiServlet {
                 notFound(response);
                 return;
             }
-            app().portfolios().delete(userId, id(path.get(0)));
+            portfolios.delete(userId, id(path.get(0)));
             response.setStatus(HttpServletResponse.SC_NO_CONTENT);
         });
     }

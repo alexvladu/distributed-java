@@ -27,12 +27,17 @@ flowchart LR
 | `asset-management-service` | TomEE Plus WAR. Consumes prices, runs portfolios and trading, serves the UI and API. |
 | `database-migrations` | Flyway migrations for the three databases; provisions the SQL Server application login. |
 
-The asset-management service follows Boundary–Control–Entity:
+The asset-management service follows Boundary–Control–Entity, with the beans managed by the TomEE EJB container:
 
-- `application` – composition root (`ApplicationContext`) and environment configuration (`AppConfig`).
-- `boundary` – servlets, the security filter, the Kafka consumer, and the Server-Sent Events hub.
-- `control` – business rules: authentication, portfolios, trading, market state, health.
-- `entity` – records and JDBC repositories, one HikariCP pool per database.
+- `application` – session hardening listener and environment configuration (`AppConfig`).
+- `boundary` – one package per channel: `http` (security filter and shared HTTP helpers), `page` (HTML pages),
+  `api` (JSON endpoints, beans injected with `@EJB`), and `stockevents` (the Kafka consumer,
+  `@Singleton @Startup`, and the Server-Sent Events hub, `@Singleton`).
+- `control` – business rules as `@Stateless` beans; `TradingControl` and `MarketControl` are `@Singleton`
+  because they share locks and the live market.
+- `control.repository` – `@Local` repository interfaces, their `@Stateless` JDBC implementations, and the
+  `Database` singleton with one HikariCP pool per database.
+- `entity` – immutable records.
 
 ## Run locally
 

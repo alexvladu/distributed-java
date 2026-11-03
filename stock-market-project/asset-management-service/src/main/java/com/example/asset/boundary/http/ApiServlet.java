@@ -5,7 +5,6 @@ import java.lang.System.Logger.Level;
 import java.util.Arrays;
 import java.util.List;
 
-import com.example.asset.application.ApplicationContext;
 import com.example.asset.control.NotFoundException;
 import com.example.asset.control.UnavailableException;
 
@@ -20,10 +19,6 @@ public abstract class ApiServlet extends HttpServlet {
     @FunctionalInterface
     protected interface Action {
         void run() throws IOException;
-    }
-
-    protected final ApplicationContext app() {
-        return ApplicationContext.from(getServletContext());
     }
 
     protected final void respond(HttpServletRequest request, HttpServletResponse response, Action action)

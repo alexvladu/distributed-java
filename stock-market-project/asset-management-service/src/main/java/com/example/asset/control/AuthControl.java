@@ -11,27 +11,46 @@ import java.util.Optional;
 import javax.crypto.SecretKeyFactory;
 import javax.crypto.spec.PBEKeySpec;
 
-import com.example.asset.entity.auth.UserCredentialRepository;
-import com.example.asset.entity.auth.UserCredentialRepository.Credential;
+import com.example.asset.control.repository.UserCredentialRepository;
+import com.example.asset.control.repository.UserRepository;
+import com.example.asset.entity.auth.Credential;
 import com.example.asset.entity.user.User;
-import com.example.asset.entity.user.UserRepository;
 
-public final class AuthControl {
+import jakarta.annotation.PostConstruct;
+import jakarta.ejb.EJB;
+import jakarta.ejb.Stateless;
+import jakarta.ejb.TransactionManagement;
+import jakarta.ejb.TransactionManagementType;
+
+@Stateless
+@TransactionManagement(TransactionManagementType.BEAN)
+public class AuthControl {
     private static final System.Logger LOG = System.getLogger(AuthControl.class.getName());
     private static final int ITERATIONS = 210_000;
     private static final String INVALID_CREDENTIALS = "Invalid username or password";
 
-    private final UserRepository users;
-    private final UserCredentialRepository credentials;
-    private final PortfolioControl portfolios;
+    @EJB
+    private UserRepository users;
+    @EJB
+    private UserCredentialRepository credentials;
+    @EJB
+    private PortfolioControl portfolios;
     private final SecureRandom random = new SecureRandom();
-    private final String dummyHash;
+    private String dummyHash;
 
-    public AuthControl(UserRepository users, UserCredentialRepository credentials, PortfolioControl portfolios) {
+    public AuthControl() {
+    }
+
+    AuthControl(UserRepository users, UserCredentialRepository credentials, PortfolioControl portfolios) {
         this.users = users;
         this.credentials = credentials;
         this.portfolios = portfolios;
-        this.dummyHash = hash("timing-equalization-only");
+        init();
+    }
+
+    @PostConstruct
+    void init() {
+        dummyHash = hash("timing-equalization-only");
     }
 
     public User register(String username, String email, String password) {

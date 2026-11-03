@@ -4,25 +4,30 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.function.Supplier;
 
-public final class HealthControl {
+import com.example.asset.control.repository.Database;
+
+import jakarta.ejb.EJB;
+import jakarta.ejb.Stateless;
+import jakarta.ejb.TransactionManagement;
+import jakarta.ejb.TransactionManagementType;
+
+@Stateless
+@TransactionManagement(TransactionManagementType.BEAN)
+public class HealthControl {
     private static final Duration MARKET_STALE_AFTER = Duration.ofMinutes(2);
 
     public record Health(String status, Map<String, String> components) {
     }
 
-    private final Supplier<Map<String, Boolean>> databasePing;
-    private final MarketControl market;
-
-    public HealthControl(Supplier<Map<String, Boolean>> databasePing, MarketControl market) {
-        this.databasePing = databasePing;
-        this.market = market;
-    }
+    @EJB
+    private Database database;
+    @EJB
+    private MarketControl market;
 
     public Health check() {
         Map<String, String> components = new LinkedHashMap<>();
-        databasePing.get().forEach((name, reachable) ->
+        database.ping().forEach((name, reachable) ->
                 components.put(name, Boolean.TRUE.equals(reachable) ? "UP" : "DOWN"));
         Instant lastUpdate = market.lastUpdateReceivedAt();
         String marketStatus;

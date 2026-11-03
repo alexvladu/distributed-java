@@ -1,10 +1,7 @@
-package com.example.asset.boundary;
+package com.example.asset.boundary.http;
 
 import java.io.IOException;
 import java.util.Set;
-
-import com.example.asset.boundary.http.Json;
-import com.example.asset.boundary.http.SessionSupport;
 
 import jakarta.servlet.Filter;
 import jakarta.servlet.FilterChain;

@@ -1,9 +1,14 @@
-package com.example.asset.entity.portfolio;
+package com.example.asset.control.repository;
 
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 
+import com.example.asset.entity.portfolio.Portfolio;
+
+import jakarta.ejb.Local;
+
+@Local
 public interface PortfolioRepository {
     Portfolio create(long userId, String name, BigDecimal cashBalance);
 

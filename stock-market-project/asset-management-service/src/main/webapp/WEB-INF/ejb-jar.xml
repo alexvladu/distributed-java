@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ejb-jar xmlns="https://jakarta.ee/xml/ns/jakartaee"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="https://jakarta.ee/xml/ns/jakartaee https://jakarta.ee/xml/ns/jakartaee/ejb-jar_4_0.xsd"
+         version="4.0">
+    <!-- JDK exceptions used for validation (400) and ownership (403) must reach ApiServlet unwrapped. -->
+    <assembly-descriptor>
+        <application-exception>
+            <exception-class>java.lang.IllegalArgumentException</exception-class>
+        </application-exception>
+        <application-exception>
+            <exception-class>java.lang.SecurityException</exception-class>
+        </application-exception>
+    </assembly-descriptor>
+</ejb-jar>

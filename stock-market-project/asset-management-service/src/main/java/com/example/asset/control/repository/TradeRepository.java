@@ -1,9 +1,15 @@
-package com.example.asset.entity.trade;
+package com.example.asset.control.repository;
 
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 
+import com.example.asset.entity.trade.Trade;
+import com.example.asset.entity.trade.TradeSide;
+
+import jakarta.ejb.Local;
+
+@Local
 public interface TradeRepository {
     Trade create(long portfolioId, String symbol, TradeSide side, BigDecimal quantity, BigDecimal price);
 

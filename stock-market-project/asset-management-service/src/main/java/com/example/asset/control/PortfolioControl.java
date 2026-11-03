@@ -4,21 +4,33 @@ import java.lang.System.Logger.Level;
 import java.math.BigDecimal;
 import java.util.List;
 
+import com.example.asset.control.repository.PortfolioRepository;
+import com.example.asset.control.repository.TradeRepository;
 import com.example.asset.entity.portfolio.Portfolio;
-import com.example.asset.entity.portfolio.PortfolioRepository;
-import com.example.asset.entity.trade.TradeRepository;
 
-public final class PortfolioControl {
+import jakarta.ejb.EJB;
+import jakarta.ejb.Stateless;
+import jakarta.ejb.TransactionManagement;
+import jakarta.ejb.TransactionManagementType;
+
+@Stateless
+@TransactionManagement(TransactionManagementType.BEAN)
+public class PortfolioControl {
     public static final BigDecimal INITIAL_CASH = new BigDecimal("1000.00");
     public static final String DEFAULT_NAME = "Main portfolio";
     static final int MAX_PORTFOLIOS_PER_USER = 20;
     private static final int MAX_NAME_LENGTH = 120;
     private static final System.Logger LOG = System.getLogger(PortfolioControl.class.getName());
 
-    private final PortfolioRepository portfolios;
-    private final TradeRepository trades;
+    @EJB
+    private PortfolioRepository portfolios;
+    @EJB
+    private TradeRepository trades;
 
-    public PortfolioControl(PortfolioRepository portfolios, TradeRepository trades) {
+    public PortfolioControl() {
+    }
+
+    PortfolioControl(PortfolioRepository portfolios, TradeRepository trades) {
         this.portfolios = portfolios;
         this.trades = trades;
     }

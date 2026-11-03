@@ -10,17 +10,28 @@ import java.util.Optional;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.regex.Pattern;
 
+import com.example.asset.control.repository.PortfolioRepository;
+import com.example.asset.control.repository.TradeRepository;
 import com.example.asset.entity.portfolio.Portfolio;
-import com.example.asset.entity.portfolio.PortfolioRepository;
 import com.example.asset.entity.trade.Trade;
-import com.example.asset.entity.trade.TradeRepository;
 import com.example.asset.entity.trade.TradeSide;
+
+import jakarta.ejb.ConcurrencyManagement;
+import jakarta.ejb.ConcurrencyManagementType;
+import jakarta.ejb.EJB;
+import jakarta.ejb.Singleton;
+import jakarta.ejb.TransactionManagement;
+import jakarta.ejb.TransactionManagementType;
 
 /**
  * Executes market orders across two databases: cash in SQL Server, the trade ledger in Oracle.
  * Cash moves first with a conditional update; if recording the trade fails, the cash movement is reversed.
+ * A singleton so every order shares the same per-portfolio locks.
  */
-public final class TradingControl {
+@Singleton
+@ConcurrencyManagement(ConcurrencyManagementType.BEAN)
+@TransactionManagement(TransactionManagementType.BEAN)
+public class TradingControl {
     private static final System.Logger LOG = System.getLogger(TradingControl.class.getName());
     private static final int MAX_QUANTITY_SCALE = 6;
     private static final BigDecimal MAX_QUANTITY = new BigDecimal("1000000000");
@@ -30,21 +41,29 @@ public final class TradingControl {
     public record Execution(Trade trade, AccountSnapshot account) {
     }
 
-    private final PortfolioControl portfolioControl;
-    private final PortfolioRepository portfolios;
-    private final TradeRepository trades;
-    private final MarketControl market;
+    @EJB
+    private PortfolioControl portfolioControl;
+    @EJB
+    private PortfolioRepository portfolios;
+    @EJB
+    private TradeRepository trades;
+    @EJB
+    private MarketControl market;
     private final ReentrantLock[] locks = new ReentrantLock[LOCK_STRIPES];
 
-    public TradingControl(PortfolioControl portfolioControl, PortfolioRepository portfolios,
+    public TradingControl() {
+        for (int index = 0; index < LOCK_STRIPES; index++) {
+            locks[index] = new ReentrantLock();
+        }
+    }
+
+    TradingControl(PortfolioControl portfolioControl, PortfolioRepository portfolios,
             TradeRepository trades, MarketControl market) {
+        this();
         this.portfolioControl = portfolioControl;
         this.portfolios = portfolios;
         this.trades = trades;
         this.market = market;
-        for (int index = 0; index < LOCK_STRIPES; index++) {
-            locks[index] = new ReentrantLock();
-        }
     }
 
     public AccountSnapshot account(long userId, long portfolioId) {

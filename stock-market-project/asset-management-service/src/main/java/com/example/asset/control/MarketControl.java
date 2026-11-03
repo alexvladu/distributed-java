@@ -13,8 +13,17 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 
-/** In-memory view of the live market, fed by the Kafka boundary. */
-public final class MarketControl {
+import jakarta.ejb.ConcurrencyManagement;
+import jakarta.ejb.ConcurrencyManagementType;
+import jakarta.ejb.Singleton;
+import jakarta.ejb.TransactionManagement;
+import jakarta.ejb.TransactionManagementType;
+
+/** In-memory view of the live market, fed by the Kafka boundary. Already thread-safe, so no container locks. */
+@Singleton
+@ConcurrencyManagement(ConcurrencyManagementType.BEAN)
+@TransactionManagement(TransactionManagementType.BEAN)
+public class MarketControl {
     static final int HISTORY_SIZE = 40;
     private static final System.Logger LOG = System.getLogger(MarketControl.class.getName());
 

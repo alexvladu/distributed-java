@@ -1,4 +1,4 @@
-package com.example.asset.entity.portfolio;
+package com.example.asset.control.repository;
 
 import java.math.BigDecimal;
 import java.sql.ResultSet;
@@ -10,20 +10,31 @@ import java.util.Optional;
 
 import javax.sql.DataSource;
 
-import com.example.asset.entity.database.Jdbc;
+import com.example.asset.entity.portfolio.Portfolio;
+
+import jakarta.annotation.PostConstruct;
+import jakarta.ejb.EJB;
+import jakarta.ejb.Stateless;
+import jakarta.ejb.TransactionManagement;
+import jakarta.ejb.TransactionManagementType;
 
 /** Portfolios live in SQL Server; {@code user_id} is a logical reference to PostgreSQL users. */
-public final class JdbcPortfolioRepository implements PortfolioRepository {
+@Stateless
+@TransactionManagement(TransactionManagementType.BEAN)
+public class JdbcPortfolioRepository implements PortfolioRepository {
     private static final String TABLE = "stock_market.dbo.portfolios";
     private static final String COLUMNS = "portfolio_id, user_id, portfolio_name, cash_balance, created_at";
     private static final String INSERTED = "INSERTED.portfolio_id, INSERTED.user_id, INSERTED.portfolio_name, "
             + "INSERTED.cash_balance, INSERTED.created_at";
     private static final String BY_ID = " WHERE portfolio_id = ?";
 
-    private final DataSource dataSource;
+    @EJB
+    private Database database;
+    private DataSource dataSource;
 
-    public JdbcPortfolioRepository(DataSource dataSource) {
-        this.dataSource = dataSource;
+    @PostConstruct
+    void init() {
+        dataSource = database.sqlServer();
     }
 
     @Override

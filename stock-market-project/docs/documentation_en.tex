@@ -125,10 +125,11 @@ simulator. The initial list contains AAPL, AMZN, MSFT, NVDA, and TSLA. The
 list is published in the background, so the server starts even if Kafka is
 slow, and the simulator then updates one random stock every 5--15 seconds.
 
-When the asset-management service starts, \class{ApplicationLifecycle} reads
-the configuration from environment variables, creates one connection pool per
-database, wires the controls and boundaries in \class{ApplicationContext}, and
-starts the Kafka consumer. The consumer uses a unique consumer group and
+When the asset-management service is deployed, the TomEE EJB container creates
+the beans and injects them with \code{@EJB}. The \class{Database} startup
+singleton reads the configuration from environment variables and creates one
+connection pool per database, and the \class{StockPriceConsumer} startup
+singleton starts the Kafka consumer. The consumer uses a unique consumer group and
 replays the topic from the beginning, so the complete market is available
 immediately after every restart.
 
@@ -191,16 +192,29 @@ with missing history.
 The asset-management service is organized as follows:
 
 \begin{itemize}
-    \item \code{application} contains the composition root
-    (\class{ApplicationContext}), the startup listener, and \class{AppConfig};
-    \item \code{boundary} contains the servlets, the single security filter,
-    the Kafka consumer, and the Server-Sent Events hub; it converts HTTP and
-    Kafka input into calls to controls;
-    \item \code{control} contains the business rules: authentication,
-    portfolios, trading, market state, holdings calculation, and health;
-    \item \code{entity} contains immutable records and JDBC repositories, one
-    HikariCP connection pool per database.
+    \item \code{application} contains the session listener, \class{AppConfig},
+    and \class{DataSourceConfig};
+    \item \code{boundary} converts HTTP and Kafka input into calls to controls
+    injected with \code{@EJB}, with one package per channel: \code{http}
+    (the single security filter and shared HTTP helpers), \code{page} (HTML
+    pages), \code{api} (JSON endpoints), and \code{stockevents} (the Kafka
+    consumer and the Server-Sent Events hub);
+    \item \code{control} contains the business rules as enterprise beans:
+    authentication, portfolios, dashboard, and health are \code{@Stateless};
+    \class{TradingControl} and \class{MarketControl} are \code{@Singleton}
+    because they share the per-portfolio locks and the live market;
+    \item \code{control.repository} contains the \code{@Local} repository
+    interfaces, their \code{@Stateless} JDBC implementations, and the
+    \class{Database} singleton with one HikariCP connection pool per database;
+    \item \code{entity} contains immutable records.
 \end{itemize}
+
+Every bean uses bean-managed transactions: the pools are not enlisted in JTA,
+so each repository call is a local JDBC transaction and the controls
+compensate across databases. \class{NotFoundException},
+\class{UnavailableException}, \code{IllegalArgumentException}, and
+\code{SecurityException} are declared application exceptions, so the container
+passes them to the servlets unchanged.
 
 Controls depend on repository interfaces, so they are unit-tested with
 in-memory implementations. Ownership violations are reported as
@@ -434,7 +448,7 @@ state-changing requests, and requires a session for protected routes.
 
 \item[Repositories] \class{JdbcUserRepository},
 \class{JdbcUserCredentialRepository}, \class{JdbcPortfolioRepository}, and
-\class{JdbcTradeRepository} implement the entity interfaces with parameterized
+\class{JdbcTradeRepository} implement the repository interfaces with parameterized
 JDBC statements on the connection pools owned by \class{Database}.
 \end{description}
 

@@ -1,4 +1,4 @@
-package com.example.asset.entity.user;
+package com.example.asset.control.repository;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -7,16 +7,27 @@ import java.util.Optional;
 
 import javax.sql.DataSource;
 
-import com.example.asset.entity.database.Jdbc;
+import com.example.asset.entity.user.User;
+
+import jakarta.annotation.PostConstruct;
+import jakarta.ejb.EJB;
+import jakarta.ejb.Stateless;
+import jakarta.ejb.TransactionManagement;
+import jakarta.ejb.TransactionManagementType;
 
 /** Users live in PostgreSQL. */
-public final class JdbcUserRepository implements UserRepository {
+@Stateless
+@TransactionManagement(TransactionManagementType.BEAN)
+public class JdbcUserRepository implements UserRepository {
     private static final String COLUMNS = "user_id, username, email, created_at";
 
-    private final DataSource dataSource;
+    @EJB
+    private Database database;
+    private DataSource dataSource;
 
-    public JdbcUserRepository(DataSource dataSource) {
-        this.dataSource = dataSource;
+    @PostConstruct
+    void init() {
+        dataSource = database.postgres();
     }
 
     @Override

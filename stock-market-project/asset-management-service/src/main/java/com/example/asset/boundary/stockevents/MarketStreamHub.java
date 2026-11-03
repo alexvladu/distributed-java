@@ -1,4 +1,4 @@
-package com.example.asset.boundary.stream;
+package com.example.asset.boundary.stockevents;
 
 import java.io.IOException;
 import java.io.PrintWriter;
@@ -18,6 +18,15 @@ import com.example.asset.boundary.http.Json;
 import com.example.asset.control.MarketControl;
 import com.example.asset.control.StockQuote;
 
+import jakarta.annotation.PostConstruct;
+import jakarta.annotation.PreDestroy;
+import jakarta.ejb.ConcurrencyManagement;
+import jakarta.ejb.ConcurrencyManagementType;
+import jakarta.ejb.DependsOn;
+import jakarta.ejb.EJB;
+import jakarta.ejb.Singleton;
+import jakarta.ejb.TransactionManagement;
+import jakarta.ejb.TransactionManagementType;
 import jakarta.servlet.AsyncContext;
 import jakarta.servlet.AsyncEvent;
 import jakarta.servlet.AsyncListener;
@@ -28,18 +37,23 @@ import jakarta.servlet.http.HttpServletResponse;
  * Server-Sent Events fan-out for market quotes. Each browser gets its own bounded, ordered queue drained by a
  * virtual thread, so a slow client can only drop its own oldest frames and never blocks the Kafka thread.
  */
-public final class MarketStreamHub implements AutoCloseable {
+@Singleton
+@DependsOn("MarketControl")
+@ConcurrencyManagement(ConcurrencyManagementType.BEAN)
+@TransactionManagement(TransactionManagementType.BEAN)
+public class MarketStreamHub {
     private static final long HEARTBEAT_SECONDS = 20;
     private static final int CLIENT_QUEUE_CAPACITY = 64;
 
-    private final MarketControl market;
+    @EJB
+    private MarketControl market;
     private final Set<Client> clients = ConcurrentHashMap.newKeySet();
     private final Consumer<StockQuote> listener = this::broadcast;
-    private final ScheduledExecutorService heartbeat;
+    private ScheduledExecutorService heartbeat;
 
-    public MarketStreamHub(MarketControl market) {
-        this.market = market;
-        this.heartbeat = Executors.newSingleThreadScheduledExecutor(runnable -> {
+    @PostConstruct
+    void start() {
+        heartbeat = Executors.newSingleThreadScheduledExecutor(runnable -> {
             Thread thread = new Thread(runnable, "market-stream-heartbeat");
             thread.setDaemon(true);
             return thread;
@@ -100,8 +114,8 @@ public final class MarketStreamHub implements AutoCloseable {
         return "event: " + event + "\ndata: " + Json.stringify(data) + "\n\n";
     }
 
-    @Override
-    public void close() {
+    @PreDestroy
+    void close() {
         market.unsubscribe(listener);
         heartbeat.shutdownNow();
         clients.forEach(Client::close);
