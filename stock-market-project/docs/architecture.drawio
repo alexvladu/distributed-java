@@ -1,45 +1,73 @@
 <mxfile host="65bd71144e">
-    <diagram id="stock-market-architecture" name="Stock Market Architecture">
-        <mxGraphModel dx="884" dy="1648" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="827" math="0" shadow="0">
+    <diagram id="simple-stock-market-architecture" name="Simple Architecture">
+        <mxGraphModel dx="2875" dy="1530" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1400" pageHeight="850" math="0" shadow="0">
             <root>
                 <mxCell id="0"/>
                 <mxCell id="1" parent="0"/>
-                <mxCell id="browser" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=14;" value="Web Browser&#xa;User" vertex="1">
-                    <mxGeometry height="70" width="150" x="40" y="220" as="geometry"/>
+                <mxCell id="IFbCXLcN8_E8c3LSX8_S-1" parent="1" style="text;html=1;align=center;verticalAlign=middle;fontSize=24;fontStyle=1;fontColor=#1f2937;" value="Stock Market Application" vertex="1">
+                    <mxGeometry height="45" width="600" x="-600" y="30" as="geometry"/>
                 </mxCell>
-                <mxCell id="tomcat" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=14;" value="TomEE Plus 10.2&#xa;Asset Management Service&#xa;localhost:8081" vertex="1">
-                    <mxGeometry height="110" width="230" x="354" y="200" as="geometry"/>
+                <mxCell id="IFbCXLcN8_E8c3LSX8_S-2" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dbeafe;strokeColor=#2563eb;strokeWidth=2;fontSize=16;" value="&lt;b&gt;WEB BROWSER&lt;/b&gt;&lt;br&gt;The user opens the application" vertex="1">
+                    <mxGeometry height="100" width="210" x="-580" y="275" as="geometry"/>
                 </mxCell>
-                <mxCell id="jetty" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=14;" value="Jetty 12&#xa;Stock Market Service&#xa;localhost:8082" vertex="1">
-                    <mxGeometry height="110" width="230" x="280" y="390" as="geometry"/>
+                <mxCell id="IFbCXLcN8_E8c3LSX8_S-3" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dcfce7;strokeColor=#16a34a;strokeWidth=2;fontSize=15;" value="&lt;b&gt;ASSET-MANAGEMENT SERVICE&lt;/b&gt;&lt;br&gt;TomEE / Servlet / JSP / EJB&lt;br&gt;Port 8081&lt;br&gt;&lt;br&gt;Users, portfolios, trades, dashboard" vertex="1">
+                    <mxGeometry height="210" width="310" x="-125" y="220" as="geometry"/>
                 </mxCell>
-                <mxCell id="kafka" parent="1" style="shape=cylinder;whiteSpace=wrap;html=1;boundedLbl=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=14;" value="Apache Kafka&#xa;Topic: stock-prices&#xa;localhost:9092" vertex="1">
-                    <mxGeometry height="120" width="210" x="640" y="280" as="geometry"/>
+                <mxCell id="IFbCXLcN8_E8c3LSX8_S-4" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fef3c7;strokeColor=#d97706;strokeWidth=2;fontSize=15;" value="&lt;b&gt;STOCK-MARKET SERVICE&lt;/b&gt;&lt;br&gt;Jetty&lt;br&gt;Port 8082&lt;br&gt;&lt;br&gt;Generates stock prices" vertex="1">
+                    <mxGeometry height="120" width="310" x="920" y="75" as="geometry"/>
                 </mxCell>
-                <mxCell id="account" parent="1" style="shape=note;whiteSpace=wrap;html=1;backgroundOutline=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=14;" value="PostgreSQL: users&#xa;SQL Server: portfolios, cash&#xa;Oracle: trade ledger" vertex="1">
-                    <mxGeometry height="90" width="210" x="364" y="-60" as="geometry"/>
+                <mxCell id="IFbCXLcN8_E8c3LSX8_S-5" parent="1" style="shape=cylinder;whiteSpace=wrap;html=1;boundedLbl=1;fillColor=#fed7aa;strokeColor=#ea580c;strokeWidth=2;fontSize=15;" value="&lt;b&gt;APACHE KAFKA&lt;/b&gt;&lt;br&gt;Topic: stock-prices&lt;br&gt;Port 9092&lt;br&gt;&lt;br&gt;Transfers price updates" vertex="1">
+                    <mxGeometry height="150" width="260" x="450" y="60" as="geometry"/>
                 </mxCell>
-                <mxCell id="browser-tomcat" edge="1" parent="1" source="browser" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;strokeWidth=2;" target="tomcat" value="HTTP&#xa;SSE live updates">
+                <mxCell id="IFbCXLcN8_E8c3LSX8_S-6" parent="1" style="shape=cylinder;whiteSpace=wrap;html=1;boundedLbl=1;fillColor=#dbeafe;strokeColor=#2563eb;strokeWidth=2;fontSize=14;" value="&lt;b&gt;POSTGRESQL&lt;/b&gt;&lt;br&gt;Port 5432&lt;br&gt;&lt;br&gt;Users and authentication" vertex="1">
+                    <mxGeometry height="120" width="220" x="-140" y="570" as="geometry"/>
+                </mxCell>
+                <mxCell id="IFbCXLcN8_E8c3LSX8_S-7" parent="1" style="shape=cylinder;whiteSpace=wrap;html=1;boundedLbl=1;fillColor=#dbeafe;strokeColor=#2563eb;strokeWidth=2;fontSize=14;" value="&lt;b&gt;MICROSOFT SQL SERVER&lt;/b&gt;&lt;br&gt;Port 1433&lt;br&gt;&lt;br&gt;Portfolios and cash" vertex="1">
+                    <mxGeometry height="120" width="220" x="190" y="500" as="geometry"/>
+                </mxCell>
+                <mxCell id="IFbCXLcN8_E8c3LSX8_S-8" parent="1" style="shape=cylinder;whiteSpace=wrap;html=1;boundedLbl=1;fillColor=#dbeafe;strokeColor=#2563eb;strokeWidth=2;fontSize=14;" value="&lt;b&gt;ORACLE DATABASE&lt;/b&gt;&lt;br&gt;Port 1521&lt;br&gt;&lt;br&gt;Trade history" vertex="1">
+                    <mxGeometry height="120" width="220" x="720" y="440" as="geometry"/>
+                </mxCell>
+                <mxCell id="IFbCXLcN8_E8c3LSX8_S-9" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f3e8ff;strokeColor=#9333ea;strokeWidth=2;fontSize=14;" value="&lt;b&gt;DATABASE-MIGRATIONS&lt;/b&gt;&lt;br&gt;Creates the tables&lt;br&gt;before the application starts" vertex="1">
+                    <mxGeometry height="100" width="250" x="340" y="700" as="geometry"/>
+                </mxCell>
+                <mxCell id="IFbCXLcN8_E8c3LSX8_S-10" edge="1" parent="1" source="IFbCXLcN8_E8c3LSX8_S-2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#2563eb;strokeWidth=2;fontSize=12;" target="IFbCXLcN8_E8c3LSX8_S-3" value="HTTP requests / pages / JSON">
                     <mxGeometry relative="1" as="geometry"/>
                 </mxCell>
-                <mxCell id="jetty-kafka" edge="1" parent="1" source="jetty" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;strokeWidth=2;" target="kafka" value="Publish price updates&#xa;Kafka Producer">
-                    <mxGeometry relative="1" x="0.0213" y="-5" as="geometry">
-                        <mxPoint as="offset"/>
+                <mxCell id="IFbCXLcN8_E8c3LSX8_S-11" edge="1" parent="1" source="IFbCXLcN8_E8c3LSX8_S-4" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#ea580c;strokeWidth=2;fontSize=12;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" target="IFbCXLcN8_E8c3LSX8_S-5" value="1. Publishes prices">
+                    <mxGeometry relative="1" x="-0.2345" as="geometry">
                         <Array as="points">
-                            <mxPoint x="575" y="445"/>
-                            <mxPoint x="575" y="410"/>
-                            <mxPoint x="745" y="410"/>
+                            <mxPoint x="830" y="135"/>
+                            <mxPoint x="830" y="135"/>
                         </Array>
                     </mxGeometry>
                 </mxCell>
-                <mxCell id="kafka-tomcat" edge="1" parent="1" source="kafka" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;strokeWidth=2;" target="tomcat" value="Consume stock-prices&#xa;Kafka Consumer">
+                <mxCell id="IFbCXLcN8_E8c3LSX8_S-12" edge="1" parent="1" source="IFbCXLcN8_E8c3LSX8_S-5" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#ea580c;strokeWidth=2;fontSize=12;" target="IFbCXLcN8_E8c3LSX8_S-3" value="2. Sends prices">
                     <mxGeometry relative="1" as="geometry"/>
                 </mxCell>
-                <mxCell id="tomcat-account" edge="1" parent="1" source="tomcat" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=both;strokeWidth=2;dashed=1;" target="account" value="JDBC (HikariCP)&#xa;cash first, then ledger">
+                <mxCell id="IFbCXLcN8_E8c3LSX8_S-13" edge="1" parent="1" source="IFbCXLcN8_E8c3LSX8_S-3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#2563eb;strokeWidth=2;fontSize=12;" target="IFbCXLcN8_E8c3LSX8_S-6" value="JDBC connection">
                     <mxGeometry relative="1" as="geometry"/>
                 </mxCell>
-                <mxCell id="legend" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=13;align=left;spacingLeft=10;" value="Main communication path:&#xa;Jetty → Kafka → TomEE → Browser" vertex="1">
-                    <mxGeometry height="65" width="470" x="40" y="570" as="geometry"/>
+                <mxCell id="IFbCXLcN8_E8c3LSX8_S-14" edge="1" parent="1" source="IFbCXLcN8_E8c3LSX8_S-3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#2563eb;strokeWidth=2;fontSize=12;" target="IFbCXLcN8_E8c3LSX8_S-7" value="JDBC connection">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="IFbCXLcN8_E8c3LSX8_S-15" edge="1" parent="1" source="IFbCXLcN8_E8c3LSX8_S-3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#2563eb;strokeWidth=2;fontSize=12;" target="IFbCXLcN8_E8c3LSX8_S-8" value="JDBC connection">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="IFbCXLcN8_E8c3LSX8_S-16" edge="1" parent="1" source="IFbCXLcN8_E8c3LSX8_S-9" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;dashed=1;strokeColor=#9333ea;strokeWidth=2;fontSize=12;" target="IFbCXLcN8_E8c3LSX8_S-6" value="Creates tables">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="migration-to-sqlserver" edge="1" parent="1" source="IFbCXLcN8_E8c3LSX8_S-9" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;dashed=1;strokeColor=#9333ea;strokeWidth=2;fontSize=12;" target="IFbCXLcN8_E8c3LSX8_S-7" value="Creates tables">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="migration-to-oracle" edge="1" parent="1" source="IFbCXLcN8_E8c3LSX8_S-9" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;dashed=1;strokeColor=#9333ea;strokeWidth=2;fontSize=12;" target="IFbCXLcN8_E8c3LSX8_S-8" value="Creates tables">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="IFbCXLcN8_E8c3LSX8_S-17" edge="1" parent="1" source="IFbCXLcN8_E8c3LSX8_S-6" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=none;dashed=1;strokeColor=#64748b;fontSize=11;" target="IFbCXLcN8_E8c3LSX8_S-7" value="user_id connects users to portfolios">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="IFbCXLcN8_E8c3LSX8_S-18" edge="1" parent="1" source="IFbCXLcN8_E8c3LSX8_S-7" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=none;dashed=1;strokeColor=#64748b;fontSize=11;" target="IFbCXLcN8_E8c3LSX8_S-8" value="portfolio_id connects portfolios to trades">
+                    <mxGeometry relative="1" as="geometry"/>
                 </mxCell>
             </root>
         </mxGraphModel>
