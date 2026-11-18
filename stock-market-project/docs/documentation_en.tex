@@ -7,8 +7,8 @@
 \usepackage{booktabs}
 \usepackage{longtable}
 \usepackage{array}
+\usepackage{tabularx}
 \usepackage{enumitem}
-\usepackage{graphicx}
 \usepackage{xcolor}
 \usepackage{hyperref}
 \usepackage{fancyhdr}
@@ -38,7 +38,7 @@
 for the Stock Market Project\par}
 
 \vspace{0.7cm}
-{\large Distributed system for stock-market simulation and portfolio management\par}
+{\large Web application for stock portfolios over three databases\par}
 
 \vspace{1.5cm}
 {\large Student: Vladu Alexandru-Gheorghe\par}
@@ -56,166 +56,259 @@ for the Stock Market Project\par}
 
 \section{Purpose and general description}
 
-The project implements a minimal distributed system for a stock market. It
-consists of two independent Java web services connected through Apache Kafka:
+The project implements a web application for managing stock portfolios.
+Users create an account, keep one or more portfolios with their own cash
+balance, buy and sell fractional shares of five stocks at fixed prices, and
+review their holdings, profit or loss, and trade history.
 
-\begin{itemize}
-    \item \emph{stock-market-service} simulates the market, maintains the
-    initial list of companies, and publishes prices to the Kafka topic
-    \code{stock-prices};
-    \item \emph{asset-management-service} consumes price updates, stores the
-    latest quote for each symbol, and provides a web interface for viewing and
-    managing a portfolio.
-\end{itemize}
+The data is deliberately split across three database engines: users and
+credentials in PostgreSQL, portfolios and cash in Microsoft SQL Server, and
+the trade ledger in Oracle Database. The tables are different but related
+through identifiers, and one page (\code{/portfolios}, backed by
+\code{/dashboard}) shows data from all three databases together.
 
-The separation between producer and consumer demonstrates asynchronous
-message-based communication. The producer does not need to know how the
-portfolio is implemented, while the consumer can process events even when no
-web page is open. Kafka acts as a persistent intermediary and decouples the
-two services in time.
-
-The solution uses Java 21, Jakarta Servlet, Jetty 12 for the producer service,
-and Tomcat 11 for the asset-management service. Both applications are
-packaged as WAR archives. Account data is persisted locally in JSON format,
-while Kafka messages use a compact project-defined JSON representation.
+The solution uses Java 21, Jakarta Enterprise Beans (EJB), Jakarta
+Persistence (JPA, implemented by Apache OpenJPA), Jakarta Servlet, and JSP.
+The application, \emph{asset-management-service}, is packaged as a WAR
+archive and runs on TomEE Plus 10.2, with one JPA persistence unit per
+database. A separate Flyway program, \emph{database-migrations}, creates the
+schemas.
 
 \section{System architecture}
 
 \subsection{Components}
 
-The logical architecture is:
+Table~\ref{tab:flows} describes the architecture as the connections between
+its components, and Table~\ref{tab:components} lists the processes and their
+ports.
 
-\begin{figure}[htbp]
-    \centering
-    \includegraphics[width=\textwidth]{arhitecture-diagram.drawio.png}
-    \caption{System architecture and communication flow}
-    \label{fig:architecture}
-\end{figure}
+\begin{table}[htbp]
+\centering
+\small
+\begin{tabularx}{\textwidth}{>{\raggedright\arraybackslash}p{2.9cm}
+                             >{\raggedright\arraybackslash}p{2.9cm}
+                             >{\raggedright\arraybackslash}X
+                             >{\raggedright\arraybackslash}p{3.1cm}}
+\toprule
+\textbf{From} & \textbf{To} & \textbf{Technology} & \textbf{Data}\\
+\midrule
+Browser & Asset-management service & HTTP: JSP pages and a JSON API & Pages,
+CRUD requests, orders\\
+Asset-management service & PostgreSQL & JPA unit \code{postgres}, JTA data
+source & Users and credentials\\
+Asset-management service & Microsoft SQL Server & JPA unit
+\code{sqlserver}, JTA data source & Portfolios and cash\\
+Asset-management service & OracleDB & JPA unit \code{oracle}, JTA data
+source & Trade ledger\\
+Migration service & All three databases & Flyway over JDBC & Schemas and
+seed rows\\
+\bottomrule
+\end{tabularx}
+\caption{Architecture: connections between the components}
+\label{tab:flows}
+\end{table}
 
-\noindent
-Figure~\ref{fig:architecture} summarizes the main components and their
-communication paths. The browser communicates with the Tomcat-hosted
-asset-management service, while the Jetty-hosted stock-market service
-publishes price updates to Kafka. The asset-management service consumes those
-updates and persists the portfolio state in the account file.
-
-\begin{center}
+\begin{table}[htbp]
+\centering
 \begin{tabular}{>{\raggedright\arraybackslash}p{3.3cm}
                 >{\centering\arraybackslash}p{1.5cm}
                 >{\raggedright\arraybackslash}p{7.0cm}}
 \toprule
 \textbf{Component} & \textbf{Port} & \textbf{Responsibility}\\
 \midrule
-Kafka & 9092 & Transports quote events through the \code{stock-prices} topic.\\
-Stock market service & 8082 & Runs on Jetty, generates prices, and publishes
-messages.\\
-Asset-management service & 8081 & Runs on Tomcat, consumes messages, and
-exposes the web API and JSP interface.\\
-Account file & -- & Stores the balance and holdings between restarts.\\
+Asset-management service & 8081 & Runs on TomEE Plus, serves the JSP
+interface and the JSON API, and accesses the databases through JPA.\\
+PostgreSQL & 5432 & Stores users and authentication data.\\
+Microsoft SQL Server & 1433 & Stores portfolios and cash balances.\\
+OracleDB & 1521 & Stores the trade ledger.\\
 \bottomrule
 \end{tabular}
-\end{center}
+\caption{Processes and ports}
+\label{tab:components}
+\end{table}
 
-When the market service starts, a context listener creates the repository, the
-Kafka publisher, and the simulator. The initial list contains AAPL, AMZN,
-MSFT, NVDA, and TSLA. Each item is published, after which the simulator
-schedules repeated updates at random intervals of 5--15 seconds.
+Inside the asset-management service, the code follows the
+Boundary--Control--Entity pattern shown in Table~\ref{tab:layers}. The TomEE
+EJB container creates and wires the beans: servlets receive them with
+\code{@EJB}, and repositories receive their \code{EntityManager} with
+\code{@PersistenceContext}.
 
-When the asset-management service starts, its context listener creates the
-Kafka consumer and portfolio service. The consumer joins the
-\code{asset-management-service} group, reads messages starting with the
-earliest available offset, and updates maps containing the latest quotes and
-their update times.
+\begin{table}[htbp]
+\centering
+\small
+\begin{tabularx}{\textwidth}{>{\raggedright\arraybackslash}p{2.4cm}
+                             >{\raggedright\arraybackslash}p{3.4cm}
+                             >{\raggedright\arraybackslash}X}
+\toprule
+\textbf{Layer} & \textbf{Jakarta technology} & \textbf{Main classes}\\
+\midrule
+Boundary & Servlets, JSP, servlet filter & \code{PageServlet} with the JSP
+views; JSON servlets under \code{/api} and \code{/auth};
+\code{SecurityFilter}\\
+Control & \code{@Stateless} and \code{@Singleton} EJBs & \code{AuthControl},
+\code{UserControl}, \code{PortfolioControl}, \code{TradingControl},
+\code{MarketControl}, \code{DashboardControl}, \code{HealthControl}\\
+Repository & \code{@Stateless} EJBs with a JPA \code{EntityManager} &
+\code{JpaUserRepository}, \code{JpaUserCredentialRepository},
+\code{JpaPortfolioRepository}, \code{JpaTradeRepository}\\
+Entity & JPA \code{@Entity} classes and Java records & \code{UserEntity},
+\code{CredentialEntity}, \code{PortfolioEntity}, \code{TradeEntity}; records
+\code{User}, \code{Credential}, \code{Portfolio}, \code{Trade}\\
+\bottomrule
+\end{tabularx}
+\caption{Layers of the asset-management service}
+\label{tab:layers}
+\end{table}
+
+At startup, TomEE creates the three JTA data sources declared in
+\code{WEB-INF/resources.xml} and the three persistence units declared in
+\code{META-INF/persistence.xml}; the \class{Database} singleton stops the
+deployment if a database password is missing. \class{MarketControl} holds the
+five tradable stocks (AAPL, AMZN, MSFT, NVDA, and TSLA) and their fixed
+prices.
+
+\subsection{Database model and connections}
+
+The databases are deliberately separated by business responsibility. Their
+tables are different, but the application joins them through stable
+identifiers because a relational foreign key cannot directly span three
+database engines:
+
+\begin{itemize}
+    \item PostgreSQL contains \code{users(user\_id, username, email,
+    created\_at)} and the authentication records
+    \code{user\_credentials}.
+    \item Microsoft SQL Server contains
+    \code{portfolios(portfolio\_id, user\_id, portfolio\_name,
+    cash\_balance, created\_at)}. \code{user\_id} is a logical reference to
+    PostgreSQL.
+    \item OracleDB contains
+    \code{trades(trade\_id, portfolio\_id, symbol, side, quantity, price,
+    executed\_at)}. \code{portfolio\_id} is a logical reference to SQL Server.
+\end{itemize}
+
+Table~\ref{tab:model} shows how every table is mapped by JPA.
+
+\begin{table}[htbp]
+\centering
+\small
+\begin{tabularx}{\textwidth}{>{\raggedright\arraybackslash}p{2.1cm}
+                             >{\raggedright\arraybackslash}p{2.9cm}
+                             >{\raggedright\arraybackslash}p{3.3cm}
+                             >{\raggedright\arraybackslash}X}
+\toprule
+\textbf{Database} & \textbf{Table} & \textbf{JPA entity (unit)} &
+\textbf{Keys and relations}\\
+\midrule
+PostgreSQL & \code{users} & \code{UserEntity} (\code{postgres}) &
+\code{user\_id} generated by the database; \code{username} and \code{email}
+are unique.\\
+PostgreSQL & \code{user\_\allowbreak credentials} & \code{CredentialEntity}
+(\code{postgres}) & \code{user\_id} is both the primary key and a foreign key
+to \code{users} (\code{ON DELETE CASCADE}).\\
+SQL Server & \code{dbo.portfolios} & \code{PortfolioEntity}
+(\code{sqlserver}) & \code{portfolio\_id} generated by the database;
+\code{user\_id} refers to PostgreSQL \code{users}.\\
+OracleDB & \code{trades} & \code{TradeEntity} (\code{oracle}) &
+\code{trade\_id} generated by the database; \code{portfolio\_id} refers to
+SQL Server \code{portfolios}.\\
+\bottomrule
+\end{tabularx}
+\caption{Tables, JPA entities, and relations between the databases}
+\label{tab:model}
+\end{table}
+
+The data sources read \code{POSTGRES\_URL}, \code{SQLSERVER\_URL}, and
+\code{ORACLE\_URL}, with separate credentials, from environment variables
+through TomEE placeholders such as \code{\$\{POSTGRES\_URL:-default\}}. Each
+repository receives the \code{EntityManager} of its persistence unit and uses
+\code{find}, \code{persist}, \code{remove}, \code{refresh}, and JPQL queries.
+Identifiers are generated by the databases
+(\code{GenerationType.IDENTITY}); creation timestamps come from column
+defaults and are read back with \code{refresh}. Since JPA cannot create
+cross-database foreign keys, the entities keep the referenced identifier as a
+plain field, and the controls validate ownership before writing. Flyway
+applies each database's migrations; JPA only maps the existing tables.
 
 \subsection{Processing sequence}
 
 \begin{enumerate}
-    \item Docker Compose starts the Kafka broker, and the launch script checks
-    that it is available.
-    \item Maven builds both WAR archives and the deployment scripts copy them
-    to the Jetty and Tomcat bases.
-    \item The market-service listener publishes the initial stock list.
-    \item The asset-management consumer polls every 500 ms and converts each
-    JSON value into a \class{StockCompany} object.
-    \item The quote is stored by symbol and every listener registered for a
-    Server-Sent Events stream is notified.
-    \item The web client requests a page, JSON data, or opens an SSE stream.
-    \item For a buy or sell operation, the price is read from the latest
-    server-side market, the transaction is validated, and the account file is
-    updated atomically.
+    \item Docker Compose starts the databases; health checks confirm
+    availability.
+    \item Flyway creates or updates the PostgreSQL, SQL Server, and OracleDB
+    schemas.
+    \item Maven builds the WAR archive; the scripts deploy it and start
+    TomEE.
+    \item TomEE creates the data sources, the persistence units, and the EJBs.
+    \item The web client requests JSP pages and JSON data.
+    \item Trading updates the SQL Server cash balance and inserts the Oracle
+    trade; the dashboard joins records from all three databases.
 \end{enumerate}
 
 \subsection{Concurrency and consistency}
 
-The market repository uses \code{ConcurrentHashMap}, while the consumer uses
-concurrent collections for quotes and listeners. Financial operations in
-\class{PortfolioService} are synchronized so that incompatible requests cannot
-modify the balance and holdings simultaneously. The account file is written
-to a temporary file and then moved atomically, reducing the risk of leaving
-partial JSON data after an interruption.
+Every repository method runs in its own container-managed JTA transaction on a single
+database, so no transaction spans two engines. \class{TradingControl}
+serializes orders per portfolio and uses a compensating action: if the
+Oracle insert fails, the SQL Server cash movement is reversed. The cash
+update reads the portfolio with \code{LockModeType.PESSIMISTIC\_WRITE}
+(\code{WITH (UPDLOCK)} on SQL Server) and refuses a negative balance; the
+\code{CHECK (cash\_balance >= 0)} constraint is the last safeguard. Failed
+logins are counted under a \code{SELECT ... FOR UPDATE} row lock. A
+duplicate username or email rolls the PostgreSQL transaction back and is
+reported as HTTP 400.
 
 \section{Inputs, outputs, and operating conditions}
 
 \subsection{Configuration and dependencies}
 
-The system requires JDK 21, Maven, Docker with Docker Compose, Jetty 12, and
-Tomcat 11. The scripts assume a Homebrew-based environment for locating the
-servers. For a different installation, the variables \code{CATALINA\_HOME},
-\code{CATALINA\_BASE}, \code{JETTY\_HOME}, and \code{JETTY\_BASE} can be
-changed.
+The system requires JDK 21, Maven, Docker with Docker Compose, PostgreSQL 16,
+Microsoft SQL Server 2022, Oracle Database Free 23, and TomEE Plus 10.2, which
+provides OpenJPA, the JTA transaction manager, and the connection pools of the
+data sources. Docker Compose installs and starts the three databases on the
+local computer. The scripts assume a Homebrew-based environment for locating
+TomEE. For a different installation, the variables \code{TOMEE\_HOME} and
+\code{SERVERS\_DIR} can be changed.
 
 The supported environment variables are:
 
-\begin{longtable}{@{}>{\raggedright\arraybackslash}p{0.35\linewidth}
-                  >{\raggedright\arraybackslash}p{0.27\linewidth}
-                  >{\raggedright\arraybackslash}p{0.32\linewidth}@{}}
+\begin{longtable}{@{}>{\raggedright\arraybackslash}p{0.27\linewidth}
+                  >{\raggedright\arraybackslash}p{0.36\linewidth}
+                  >{\raggedright\arraybackslash}p{0.29\linewidth}@{}}
 \toprule
 \textbf{Variable} & \textbf{Default} & \textbf{Purpose}\\
 \midrule
 \endhead
-\code{KAFKA\_\allowbreak BOOTSTRAP\_\allowbreak SERVERS} & \code{localhost:9092} & Kafka broker address.\\
-\code{KAFKA\_TOPIC} & \code{stock-prices} & Event topic.\\
-\code{ACCOUNT\_\allowbreak DATA\_\allowbreak FILE} 
-  & \code{src/\allowbreak main/\allowbreak resources/\allowbreak data/\allowbreak account.json}
-  & Persistent account-file path.\\
+\code{POSTGRES\_URL} &
+\code{jdbc:\allowbreak postgresql://\allowbreak localhost:\allowbreak
+5432/\allowbreak stock\_market}
+  & PostgreSQL data source.\\
+\code{SQLSERVER\_URL} &
+\code{jdbc:\allowbreak sqlserver://\allowbreak localhost:\allowbreak
+1433;\allowbreak databaseName=stock\_market;\allowbreak encrypt=false}
+  & Microsoft SQL Server data source.\\
+\code{ORACLE\_URL} &
+\code{jdbc:\allowbreak oracle:\allowbreak thin:@\allowbreak localhost:\allowbreak
+1521/\allowbreak FREEPDB1}
+  & OracleDB data source.\\
+\code{POSTGRES\_USER}, \code{SQLSERVER\_USER}, \code{ORACLE\_APP\_USER} &
+\code{stock\_app} & Database users of the three data sources.\\
+\code{POSTGRES\_PASSWORD}, \code{SQLSERVER\_PASSWORD},
+\code{ORACLE\_APP\_PASSWORD} & required & Passwords of the three data
+sources.\\
 \bottomrule
 \end{longtable}
 
-A market message contains \code{symbol}, \code{name}, \code{price}, and
-\code{quantity}. The symbol and name must not be blank, the price must be a
-non-negative decimal value, and the quantity must be a non-negative integer.
-Transaction quantities may be fractional, but must be strictly positive.
+Orders reference one of the five listed symbols and always execute at the
+server's fixed price. Trade quantities may be fractional (at most six
+decimals), but must be strictly positive, and an order must be worth at least
+\$0.01.
 
 \subsection{Build and deployment}
 
-Each service is packaged as a WAR archive using Maven. The deployment process
-is different for the two servlet containers, but both services are deployed
-under the root context of their respective server.
-
-The asset-management service is deployed to Tomcat by
-\code{asset-management-service/deploy.sh}. The script performs the following
-operations:
-
-\begin{enumerate}
-    \item changes to the service directory and runs
-    \code{mvn clean package};
-    \item removes previous root and legacy deployments, together with cached
-    Tomcat work files;
-    \item copies \code{target/asset-management-service.war} to the Tomcat
-    webapps directory as \code{ROOT.war}.
-\end{enumerate}
-
-The stock-market service is deployed to Jetty by
-\code{stock-market-service/deploy.sh}. This script:
-
-\begin{enumerate}
-    \item runs \code{mvn clean package};
-    \item creates the Jetty base directory and enables the HTTP and
-    \code{ee10-deploy} modules if they are not already configured;
-    \item removes previous root and legacy deployments;
-    \item copies \code{target/stock-market-service-1.0-SNAPSHOT.war} to the
-    Jetty webapps directory as \code{ROOT.war}.
-\end{enumerate}
+The application is packaged as a WAR with Maven and deployed under the root
+context by \code{asset-management-service/deploy.sh}; it runs on TomEE port
+8081.
 
 The complete local deployment can be started from the project root with:
 
@@ -223,53 +316,69 @@ The complete local deployment can be started from the project root with:
 ./run.sh
 \end{verbatim}
 
-The script starts Kafka using Docker Compose, waits until the broker accepts
-connections, executes both deployment scripts, and starts Tomcat and Jetty.
-Tomcat serves the asset-management application on port 8081, while Jetty
-serves the stock-market producer on port 8082. The account-file path is
-explicitly configured by the script through \code{ACCOUNT\_DATA\_FILE}.
-Tomcat and Jetty logs are written to
-\code{/tmp/asset-management-service-tomcat.log} and
-\code{/tmp/stock-market-service-jetty.log}.
+The script starts the databases, waits for health checks, applies migrations,
+deploys the WAR, and starts TomEE. The log is written to
+\code{/tmp/asset-management-service-tomee.log}.
 
-Deployment requires Docker to be running and assumes that the server
-locations are available through Homebrew. The paths can be adapted by changing
-\code{CATALINA\_HOME}, \code{CATALINA\_BASE}, \code{JETTY\_HOME}, and
-\code{JETTY\_BASE}. To stop the local deployment from another terminal, use:
+Deployment requires Docker to be running and assumes that TomEE is available
+through Homebrew. The database credentials must be provided through
+\code{.env} or the shell environment. To stop the local deployment from
+another terminal, use:
 
 \begin{verbatim}
 ./stop.sh
 \end{verbatim}
 
-This command releases ports 8081 and 8082. Pressing \code{Ctrl+C} in the
-terminal running \code{run.sh} additionally stops both application servers and
-the Kafka Docker Compose stack.
+This releases port 8081; \code{Ctrl+C} also stops TomEE and the Docker
+Compose stack.
 
 \subsection{HTTP interface}
 
-\begin{longtable}{>{\raggedright\arraybackslash}p{2.2cm}
-                  >{\raggedright\arraybackslash}p{4.1cm}
-                  >{\raggedright\arraybackslash}p{7.2cm}}
+\begin{longtable}{>{\raggedright\arraybackslash}p{2.4cm}
+                  >{\raggedright\arraybackslash}p{4.9cm}
+                  >{\raggedright\arraybackslash}p{6.2cm}}
 \toprule
 \textbf{Method} & \textbf{Route} & \textbf{Behavior}\\
 \midrule
 \endhead
-GET & \code{/} & Application home page.\\
-GET & \code{/assets} & JSP page containing portfolio data.\\
-GET & \code{/assets/events} & SSE stream with updated market and account data.\\
-GET & \code{/live-market} & Live-market user interface.\\
-GET & \code{/live-market/data} & JSON containing stocks and account status.\\
-GET & \code{/live-market/events} & SSE stream for live updates.\\
-POST & \code{/live-market/buy} & Buys the requested quantity of a symbol.\\
-POST & \code{/live-market/sell} & Sells the requested quantity of a symbol.\\
+GET & \code{/} & Overview page: net worth, portfolios, and stocks.\\
+GET & \code{/market} & Stocks, prices, buy and sell.\\
+GET & \code{/assets} & Holdings, allocation, profit and loss, trade ledger.\\
+GET & \code{/portfolios} & Portfolio and account management.\\
+GET & \code{/auth.html} & Log in or create an account.\\
+POST & \code{/auth/register} & Creates the user and its credentials
+(PostgreSQL) and a funded portfolio (SQL Server); signs in.\\
+POST & \code{/auth/login}, \code{/auth/logout} & Starts or ends the
+session.\\
+GET & \code{/api/session} & The signed-in user.\\
+GET, PUT, DELETE & \code{/api/users/\{id\}} & Own profile (PostgreSQL);
+\code{DELETE} also removes the portfolios and trades.\\
+GET, POST & \code{/api/portfolios} & Lists or creates portfolios (SQL
+Server).\\
+GET, PUT, DELETE & \code{/api/portfolios/\{id\}} & Reads, renames, or deletes a
+portfolio together with its trades.\\
+GET & \code{/api/portfolios/\{id\}/\allowbreak account} & Cash, holdings, valuation, and
+unrealized profit or loss.\\
+GET, POST & \code{/api/portfolios/\{id\}/\allowbreak trades} & Trade ledger, or a new
+market order (OracleDB).\\
+GET, PUT, DELETE & \code{/api/trades/\{id\}} & Reads a trade, corrects its
+quantity, or voids it.\\
+GET & \code{/api/market}, \code{/api/market/\{symbol\}} & Stocks and their
+prices.\\
+GET & \code{/dashboard} & User, portfolios, and trades joined across the three
+databases.\\
+GET & \code{/health} & Database status (public; 503 when a database is
+unreachable).\\
 \bottomrule
 \end{longtable}
 
-The last two routes receive the \code{symbol} and \code{quantity} parameters.
-The symbol is normalized by trimming whitespace and converting it to
-uppercase. If the stock is not present in the latest market, the quantity is
-missing or invalid, the balance is insufficient, or too few shares are held,
-the server returns HTTP 400 and a JSON object containing an \code{error} field.
+All \code{/api} routes and \code{/dashboard} require a session and exchange
+JSON. Requests that change data must send the header
+\code{X-Requested-With: XMLHttpRequest}; the browser client does this.
+Errors are returned as \code{\{"error": "..."\}} with status 400 for invalid
+input (for example insufficient cash or holdings), 401 without a session,
+403 for another user's profile, 404 for missing resources or resources of
+other users, and 503 when the trade ledger cannot be updated.
 
 \section{Objects and prototypes}
 
@@ -277,144 +386,152 @@ The following sections describe the project objects without including their
 implementation. The prototypes show method names, parameters, and return
 types.
 
-\subsection{Stock-market service}
+\subsection{JPA entities}
+
+Each entity has a protected no-argument constructor for JPA, a public
+constructor for new rows, and a method that converts it to the immutable
+record used by the controls and the JSON API.
+
+\begin{longtable}{>{\raggedright\arraybackslash}p{3.2cm}
+                  >{\raggedright\arraybackslash}p{10.3cm}}
+\toprule
+\textbf{Entity} & \textbf{Prototypes}\\
+\midrule
+\endhead
+\class{UserEntity} & \code{UserEntity(String username, String email)};
+\code{void update(String username, String email)}; \code{User toUser()}.\\
+\class{CredentialEntity} & \code{CredentialEntity(long userId, String
+passwordHash)}; \code{void recordFailedAttempt()} (locks the account for 15
+minutes after five consecutive failures); \code{void recordSuccessfulLogin()};
+\code{Credential toCredential(String username)}.\\
+\class{PortfolioEntity} & \code{PortfolioEntity(long userId, String
+portfolioName, BigDecimal cashBalance)}; \code{void rename(String
+portfolioName)}; \code{boolean adjustCash(BigDecimal delta)} (refuses a
+negative balance); \code{Portfolio toPortfolio()}.\\
+\class{TradeEntity} & \code{TradeEntity(long portfolioId, String symbol,
+TradeSide side, BigDecimal quantity, BigDecimal price)}; \code{void
+changeQuantity(BigDecimal quantity)}; \code{Trade toTrade()}.\\
+\bottomrule
+\end{longtable}
+
+\subsection{Repositories}
+
+The repositories are \code{@Local} interfaces implemented by
+\code{@Stateless} EJBs. Every method runs in its own container-managed
+transaction; database failures reach the controls as runtime exceptions.
 
 \begin{description}
-\item[\class{StockCompany}] A record with the components \code{String symbol},
-\code{String name}, \code{BigDecimal price}, and \code{long quantity}. The
-record's implicit constructor creates a complete quote.
+\item[\class{JpaUserRepository}] (\code{UserRepository}, unit
+\code{postgres}): \code{Optional<User> findById(long id)},
+\code{boolean existsByUsername(String username)} (case-insensitive),
+\code{Optional<User> update(long id, String username, String email)}, and
+\code{void delete(long id)}. \code{update} throws
+\code{IllegalArgumentException} when the username or email is already in
+use.
 
-\item[\class{StockCompanyJson}] A utility class with no public instantiation.
-\begin{itemize}
-    \item \code{static String write(StockCompany company)} -- serializes one
-    quote.
-    \item \code{static String writeAll(List<StockCompany> companies)} --
-    serializes a list.
-    \item \code{static StockCompany fromParameters(String symbol, String name,
-    String price, String quantity)} -- validates text parameters and creates a
-    quote.
-\end{itemize}
-The parsing method can throw \code{IllegalArgumentException} for missing
-fields, non-numeric values, or negative values.
+\item[\class{JpaUserCredentialRepository}] (\code{UserCredentialRepository},
+unit \code{postgres}): \code{User createAccount(String username, String
+email, String passwordHash)} inserts the user and its credentials in one
+transaction and throws \code{IllegalArgumentException} for a duplicate;
+\code{Optional<Credential> findByUsername(String username)},
+\code{void recordFailedAttempt(long userId)}, and \code{void
+recordSuccessfulLogin(long userId)}.
 
-\item[\class{StockCompanyRepository}] The no-argument constructor loads five
-initial companies.
-\begin{itemize}
-    \item \code{void save(StockCompany company)} -- stores a company by
-    \code{symbol}.
-    \item \code{List<StockCompany> findAll()} -- returns companies in sorted
-    order.
-    \item \code{StockCompany createRandomPriceUpdate()} -- selects a company
-    and calculates a random price variation.
-\end{itemize}
+\item[\class{JpaPortfolioRepository}] (\code{PortfolioRepository}, unit
+\code{sqlserver}): \code{Portfolio create(long userId, String name,
+BigDecimal cashBalance)}, \code{Optional<Portfolio> findById(long id)},
+\code{List<Portfolio> findByUserId(long userId)},
+\code{Optional<Portfolio> rename(long id, String name)}, \code{void
+delete(long id)}, and \code{boolean adjustCash(long id, BigDecimal delta)},
+which returns \code{false} when the portfolio does not exist or the balance
+would become negative.
 
-\item[\class{StockMarketPublisher}] The no-argument constructor configures the
-Kafka producer. \code{RecordMetadata publish(StockCompany company)} publishes
-the message and waits for broker confirmation; it can throw \code{Exception}.
-\code{void close()} closes the producer and implements \code{AutoCloseable}.
+\item[\class{JpaTradeRepository}] (\code{TradeRepository}, unit
+\code{oracle}): \code{Trade create(long portfolioId, String symbol, TradeSide
+side, BigDecimal quantity, BigDecimal price)}, \code{Optional<Trade>
+findById(long id)}, \code{List<Trade> findByPortfolioId(long portfolioId)}
+(newest first), \code{Optional<Trade> updateQuantity(long id, BigDecimal
+quantity)}, \code{void delete(long id)}, and \code{void
+deleteByPortfolioId(long portfolioId)} (a JPQL bulk delete).
 
-\item[\class{StockMarketSimulator}] The constructor
-\code{StockMarketSimulator(StockCompanyRepository repository,
-StockMarketPublisher publisher)} receives the data source and publisher.
-\code{void start()} publishes initial values and starts scheduling.
-\code{void close()} cancels the next update and stops the executor.
+\item[\class{Database}] A \code{@Singleton @Startup} EJB with one
+\code{EntityManager} per unit. \code{Map<String, Boolean> ping()} runs a
+trivial native query on each database for the health check.
 \end{description}
 
-\subsection{Asset-management service}
+\subsection{Controls and servlets}
 
 \begin{description}
-\item[\class{StockCompany}] A DTO record with \code{String symbol},
-\code{String name}, \code{BigDecimal price}, and \code{long quantity}. It is
-the local representation of a consumed message.
+\item[\class{AuthControl}] \code{User register(String username, String email,
+String password)} and \code{User authenticate(String username, String
+password)}. Passwords are hashed with PBKDF2; invalid data throws
+\code{IllegalArgumentException}, and wrong credentials or a locked account
+throw \code{SecurityException}.
 
-\item[\class{StockCompanyJson}] A utility class without a public constructor.
-\code{static StockCompany read(String value)} parses a JSON message and can
-throw \code{IllegalArgumentException} for an invalid format.
+\item[\class{UserControl}] \code{User get(long userId)}, \code{User update(long
+userId, long id, String username, String email)}, and \code{void delete(long
+userId, long id)}. A user can change or delete only their own account;
+deletion removes the portfolios and trades before the PostgreSQL user.
 
-\item[\class{StockPriceConsumer}] The no-argument constructor configures the
-Kafka consumer. Its public methods are:
-\begin{itemize}
-    \item \code{void start()} -- starts the consumer thread;
-    \item \code{List<StockCompany> latestPrices()} -- returns sorted quotes;
-    \item \code{Instant lastUpdated(String symbol)} -- returns the last update
-    time;
-    \item \code{Map<String, StockCompany> latestPricesBySymbol()} -- returns
-    an unmodifiable copy of the market;
-    \item \code{void addListener(Consumer<StockCompany> listener)} and
-    \code{void removeListener(Consumer<StockCompany> listener)} -- manage SSE
-    subscribers;
-    \item \code{void close()} -- stops the consumer.
-\end{itemize}
+\item[\class{PortfolioControl}] \code{List<Portfolio> list(long userId)},
+\code{Portfolio get(long userId, long portfolioId)}, \code{Portfolio
+create(long userId, String name)}, \code{Portfolio createDefault(long
+userId)}, \code{Portfolio rename(long userId, long portfolioId, String
+name)}, and \code{void delete(long userId, long portfolioId)}. Portfolios of
+other users are reported as missing (\code{NotFoundException}).
 
-\item[\class{Holding}] A record with \code{String symbol}, \code{String name},
-and \code{BigDecimal quantity}, representing a holding.
+\item[\class{TradingControl}] \code{AccountSnapshot account(long userId, long
+portfolioId)}, \code{List<Trade> history(long userId, long portfolioId)},
+\code{Trade trade(long userId, long tradeId)}, \code{Execution execute(long
+userId, long portfolioId, String symbol, String side, BigDecimal quantity)},
+\code{Execution correct(long userId, long tradeId, BigDecimal quantity)}, and
+\code{void voidTrade(long userId, long tradeId)}. It throws
+\code{IllegalArgumentException} for invalid orders, insufficient cash, or
+insufficient holdings, and \code{UnavailableException} when the Oracle write
+fails and the cash movement had to be reversed.
 
-\item[\class{AccountState}] A persistent record with
-\code{BigDecimal cashBalance} and \code{List<Holding> holdings}.
+\item[\class{MarketControl}] A \code{@Singleton} EJB holding the five stocks
+as \class{StockQuote} records (\code{String symbol}, \code{String name},
+\code{BigDecimal price}). \code{Optional<StockQuote> quote(String symbol)}
+finds a stock case-insensitively, and \code{List<StockQuote> quotes()}
+returns all of them sorted by symbol.
 
-\item[\class{AccountSnapshot}] A presentation record with
-\code{BigDecimal cashBalance}, \code{BigDecimal investedValue},
-\code{BigDecimal totalValue}, and \code{List<Holding> holdings}.
+\item[\class{DashboardControl}] \code{Dashboard load(long userId)} joins the
+user (PostgreSQL), its portfolios (SQL Server), and their trades (OracleDB).
 
-\item[\class{PortfolioJson}] A utility class. \code{static String
-write(AccountSnapshot account)} converts an account snapshot to JSON.
+\item[\class{HealthControl}] \code{Health check()} reports each database as
+\code{UP} or \code{DOWN} using \code{Database.ping()}.
 
-\item[\class{PortfolioService}] The public no-argument constructor uses the
-path from \code{ACCOUNT\_DATA\_FILE}; the constructor with
-\code{Path accountFile} is intended for internal configuration. Its methods
-are:
-\begin{itemize}
-    \item \code{AccountSnapshot snapshot(Map<String, StockCompany> market)} --
-    calculates investment value using current prices;
-    \item \code{AccountSnapshot buy(StockCompany stock, BigDecimal quantity,
-    Map<String, StockCompany> market)} -- buys shares;
-    \item \code{AccountSnapshot sell(StockCompany stock, BigDecimal quantity,
-    Map<String, StockCompany> market)} -- sells shares.
-\end{itemize}
-The transaction methods throw \code{IllegalArgumentException} for an invalid
-quantity, an unknown symbol, insufficient balance, or insufficient shares.
-They can throw \code{IllegalStateException} if the account file cannot be
-loaded or saved.
+\item[\class{PageServlet}] Forwards \code{/}, \code{/market},
+\code{/assets}, and \code{/portfolios} to the JSP views under
+\code{WEB-INF/views}.
 
-\item[\class{AssetServlet}] Extends \code{HttpServlet}. The method
-\code{void doGet(HttpServletRequest request, HttpServletResponse response)}
-serves the \code{/assets} page or the \code{/assets/events} stream; it can
-throw \code{ServletException} and \code{IOException}.
+\item[\class{ApiServlet}] The base class of the JSON servlets
+(\class{RegisterServlet}, \class{LoginServlet}, \class{LogoutServlet},
+\class{SessionServlet}, \class{UserServlet}, \class{PortfolioServlet},
+\class{TradeServlet}, \class{MarketServlet}, \class{DashboardServlet},
+\class{HealthServlet}). It maps \code{IllegalArgumentException} to 400,
+\code{UnauthorizedException} to 401, \code{SecurityException} to 403,
+\code{NotFoundException} to 404, and \code{UnavailableException} to 503.
+The HTTP methods can throw \code{IOException}.
 
-\item[\class{LiveMarketServlet}] Extends \code{HttpServlet}. The methods
-\code{void doGet(HttpServletRequest request, HttpServletResponse response)} and
-\code{void doPost(HttpServletRequest request, HttpServletResponse response)}
-serve the page, data, SSE, buying, and selling operations. The declared
-exceptions are \code{ServletException} and \code{IOException}; validation
-errors are converted into HTTP 400 responses.
+\item[\class{SecurityFilter}] A servlet filter that requires a session for
+private routes, checks the CSRF header, and sets the security headers.
 \end{description}
-
-The \class{StockMarketContextListener} and
-\class{StockPriceContextListener} classes implement
-\code{ServletContextListener}. Their default constructor is used by the
-container. \code{void contextInitialized(ServletContextEvent event)} creates
-the components, while \code{void contextDestroyed(ServletContextEvent event)}
-releases resources. In the second service, the objects are registered in the
-servlet context so that they can be used by the servlets.
 
 \section{System calls and relevant libraries}
 
-The project does not make direct native kernel calls; system-level operations
-are provided by Java libraries and external launch processes. The important
-uses are:
+System-level operations are provided by Java libraries and launch scripts:
 
 \begin{itemize}
-    \item TCP/IP through the Kafka client and the Jetty/Tomcat HTTP servers;
-    \item Java threads for the consumer and the simulator's scheduled executor;
-    \item file-system operations through \code{Files.readString},
-    \code{Files.writeString}, \code{Files.createDirectories}, and
-    \code{Files.move};
-    \item external processes started by the shell scripts: Docker Compose,
-    Maven, Tomcat, and Jetty;
-    \item controlled shutdown through Kafka \code{wakeup()} and executor
-    interruption;
-    \item persistent HTTP connections for Server-Sent Events, using the
-    \code{text/event-stream}, \code{no-cache}, and \code{keep-alive} headers.
+    \item TCP/IP through the JDBC drivers and the TomEE HTTP server;
+    \item JPA through Apache OpenJPA: \code{EntityManager}, JPQL queries,
+    pessimistic locks, and database-generated identifiers;
+    \item JTA transactions started and committed by the EJB container;
+    \item the PostgreSQL, SQL Server, and Oracle JDBC drivers, used through
+    the TomEE data sources and by Flyway;
+    \item PBKDF2 password hashing from the Java cryptography API;
+    \item Docker Compose, Maven, and TomEE started by scripts.
 \end{itemize}
 
 \section{Usage examples}
@@ -427,101 +544,92 @@ From the project directory, run:
 ./run.sh
 \end{verbatim}
 
-The script starts Kafka, waits for the broker, builds and deploys both
-services, and starts the application servers. The application is available at
-\url{http://localhost:8081/live-market}, while the market service runs on port
-8082. Stop the system with \code{Ctrl+C} or, from another terminal, with
-\code{./stop.sh}.
+The script starts the infrastructure, deploys both services, and starts the
+servers. The application is available at \url{http://localhost:8081/}; stop
+it with \code{Ctrl+C} or \code{./stop.sh}.
 
-\subsection{Buying and selling}
+\subsection{Creating an account and trading}
 
-A client can buy 0.5 AAPL shares with:
-
-\begin{verbatim}
-curl -X POST http://localhost:8081/live-market/buy \
-  -d "symbol=AAPL&quantity=0.5"
-\end{verbatim}
-
-The response is JSON containing the available balance, invested value, total
-value, and holdings. A partial sale is analogous:
+The browser client performs these requests; with \code{curl}, the session
+cookie is kept in the file \code{jar}. Registration creates the user in
+PostgreSQL and a portfolio with \$1,000.00 in SQL Server:
 
 \begin{verbatim}
-curl -X POST http://localhost:8081/live-market/sell \
-  -d "symbol=AAPL&quantity=0.2"
+curl -c jar -H 'Content-Type: application/json' \
+  -H 'X-Requested-With: XMLHttpRequest' \
+  -d '{"username":"alex","email":"alex@example.com",
+       "password":"a-long-password"}' \
+  http://localhost:8081/auth/register
+curl -b jar http://localhost:8081/api/portfolios
 \end{verbatim}
 
-The current state can be read without modifying the account:
+With the returned \code{portfolioId}, a market order buys 0.5 AAPL shares at
+the fixed AAPL price; the trade is stored in OracleDB:
 
 \begin{verbatim}
-curl http://localhost:8081/live-market/data
+curl -b jar -H 'Content-Type: application/json' \
+  -H 'X-Requested-With: XMLHttpRequest' \
+  -d '{"symbol":"AAPL","side":"BUY","quantity":"0.5"}' \
+  http://localhost:8081/api/portfolios/<portfolioId>/trades
 \end{verbatim}
 
-In a browser, the \code{/live-market} page uses SSE to display prices without
-a full page reload. The account is valued using the latest server-side price,
-not a value supplied by the client.
+The response contains the trade and the updated account: cash, holdings,
+invested value, and total value. A sale uses \code{"side":"SELL"}. The
+account can be read without modifying the databases:
 
-\section{Test suite and verification}
+\begin{verbatim}
+curl -b jar http://localhost:8081/api/portfolios/<portfolioId>/account
+\end{verbatim}
 
-The following table describes the recommended tests. The first tests verify
-functionality, while the last tests verify integration and error handling.
+The \code{/market} page performs the same orders from the browser and shows
+the estimated cost before each order.
 
-\begin{longtable}{p{0.8cm}p{4.0cm}p{5.1cm}p{3.4cm}}
-\toprule
-\textbf{ID} & \textbf{Scenario} & \textbf{Expected result} & \textbf{Verification}\\
-\midrule
-\endhead
-T1 & Start broker and services & Kafka is available and both WARs start
-without errors & logs and ports\\
-T2 & Initial publication & The five symbols appear in the consumer & endpoint
-\code{/live-market/data}\\
-T3 & Random update & A symbol price changes after 5--15 seconds & producer
-log and SSE\\
-T4 & Valid purchase & Balance decreases by the rounded cost and holdings
-increase & POST \code{/buy}\\
-T5 & Partial sale & Holdings and balance are updated correctly & POST
-\code{/sell}\\
-T6 & Zero or negative quantity & HTTP 400 and an error message & JSON response\\
-T7 & Insufficient balance & The transaction does not modify the account file
-& HTTP 400\\
-T8 & Sale above holdings & The transaction is rejected & HTTP 400\\
-T9 & Restart & Balance and holdings are restored from JSON & file and snapshot\\
-T10 & Controlled shutdown & Threads and Kafka connections close cleanly
-& Ctrl+C and logs\\
-\bottomrule
-\end{longtable}
+\subsection{CRUD and cross-database examples}
 
-To verify the build, run \code{mvn clean package} in each service. Complete
-integration testing must be performed with Kafka active because the
-asset-management service depends on the broker and on published messages. If
-the account file is corrupt, the application must explicitly report an
-\code{IllegalStateException} rather than continuing with an apparently valid
-empty account.
+Updates in each database, using the identifiers returned above:
+
+\begin{verbatim}
+curl -b jar -X PUT -H 'Content-Type: application/json' \
+  -H 'X-Requested-With: XMLHttpRequest' \
+  -d '{"username":"alex","email":"alex@example.org"}' \
+  http://localhost:8081/api/users/<userId>
+curl -b jar -X PUT -H 'Content-Type: application/json' \
+  -H 'X-Requested-With: XMLHttpRequest' \
+  -d '{"portfolioName":"Long term"}' \
+  http://localhost:8081/api/portfolios/<portfolioId>
+curl -b jar -X PUT -H 'Content-Type: application/json' \
+  -H 'X-Requested-With: XMLHttpRequest' \
+  -d '{"quantity":"0.25"}' \
+  http://localhost:8081/api/trades/<tradeId>
+\end{verbatim}
+
+The dashboard combines the three databases in one response:
+
+\begin{verbatim}
+curl -b jar http://localhost:8081/dashboard
+\end{verbatim}
+
+\code{DELETE} on \code{/api/trades/<tradeId>} voids a trade and returns its
+cash; \code{DELETE} on \code{/api/portfolios/<portfolioId>} removes the
+portfolio and its trades; \code{DELETE} on \code{/api/users/<userId>} removes
+each portfolio (SQL Server) and its trades (OracleDB), then the user and its
+credentials (PostgreSQL). Before creating or changing a child record, the EJB
+controls verify the parent record in the preceding database.
 
 \section{Alternative solutions and limitations}
 
-Kafka could be replaced by direct REST communication, WebSocket, or another
-JMS broker. REST would be simpler for a single request, but would couple the
-producer and consumer and would require additional retry and event-retention
-mechanisms. WebSocket would be appropriate for browser updates, but would not
-necessarily replace the broker between the services. The current solution uses
-SSE for the browser because the stream is unidirectional and simple to consume.
-
-The implementation is intentionally minimal: it has one local broker, one
-persistent account, and no authentication, authorization, transactional
-database, or replication. A production system would require user identities,
-standardized JSON validation, multiple Kafka partitions, replication,
-structured logging, and a transactional database. These limitations do not
-affect the demonstration of distributed communication, asynchronous
-processing, and portfolio management.
+Stock prices are fixed in \class{MarketControl}, so unrealized profit stays at
+zero unless the prices are changed in the code. They could instead be kept
+in a database table with their own CRUD page, or read from an external price.
 
 \section{Conclusions}
 
-The project demonstrates a clear distributed architecture in which market-data
-generation, message transport, and portfolio management are separate
-responsibilities. Kafka provides event decoupling and delivery, servlets
-provide HTTP access, and SSE sends changes to the web interface in near real
-time. Atomic account persistence and synchronized transaction operations
-preserve local consistency. Through the documented routes and test suite, the
-behavior can be verified both component by component and end to end.
+The project shows how one Jakarta EE application can keep related data in
+three different database engines. EJBs coordinate the business rules and
+transactions, JPA maps one persistence unit to each database, and
+Servlets/JSP provide the web interface. PostgreSQL, SQL Server, and Oracle
+store different but related tables, while the dashboard performs the
+cross-database join in the application. Through the documented CRUD routes,
+the behavior can be verified both component by component and end to end.
 
 \end{document}

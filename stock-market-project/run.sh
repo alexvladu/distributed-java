@@ -1,78 +1,76 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-KAFKA_COMPOSE_FILE="$PROJECT_DIR/docker-compose.yml"
+# shellcheck source=scripts/common.sh
+. "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/scripts/common.sh"
+# stop.sh identifies this launcher by its working directory.
+cd "$PROJECT_DIR"
+
 RUN_LOCK_FILE="/tmp/stock-market-project.run.lock"
+RUN_PID_FILE="/tmp/stock-market-project.run.pid"
 exec 9>"$RUN_LOCK_FILE"
 if ! flock -n 9; then
     echo "Another run.sh instance is already running." >&2
     echo "Stop it with Ctrl+C in its terminal before starting another one." >&2
     exit 1
 fi
+printf '%s\n' "$$" >"$RUN_PID_FILE"
 
-export CATALINA_HOME="$(brew --prefix tomcat)/libexec"
-export CATALINA_BASE="/home/alex/sisteme-distribuite/servere/tomcat-base"
-export JETTY_HOME="$(brew --prefix jetty)/libexec"
-export JETTY_BASE="/home/alex/sisteme-distribuite/servere/jetty-base"
-export ACCOUNT_DATA_FILE="$PROJECT_DIR/asset-management-service/src/main/resources/data/account.json"
-TOMCAT_LOG="/tmp/asset-management-service-tomcat.log"
-JETTY_LOG="/tmp/stock-market-service-jetty.log"
+TOMEE_LOG="/tmp/asset-management-service-tomee.log"
 
 cleanup() {
     trap - TERM INT EXIT
-    [ -n "${TOMCAT_PID:-}" ] && kill "$TOMCAT_PID" 2>/dev/null || true
-    [ -n "${JETTY_PID:-}" ] && kill "$JETTY_PID" 2>/dev/null || true
-    docker compose -f "$KAFKA_COMPOSE_FILE" down
+    rm -f "$RUN_PID_FILE"
+    [ -n "${TOMEE_PID:-}" ] && kill "$TOMEE_PID" 2>/dev/null || true
+    docker compose -f "$COMPOSE_FILE" down
 }
 
 trap cleanup TERM INT EXIT
 
-docker compose -f "$KAFKA_COMPOSE_FILE" up -d
-for attempt in {1..30}; do
-    if docker compose -f "$KAFKA_COMPOSE_FILE" exec -T kafka /opt/kafka/bin/kafka-topics.sh \
-        --bootstrap-server localhost:9092 --list >/dev/null 2>&1; then
-        break
+wait_for_health() {
+    local name="$1" url="$2"
+    if ! command -v curl >/dev/null 2>&1; then
+        return 0
     fi
-    if [ "$attempt" -eq 30 ]; then
-        echo "Kafka did not become ready" >&2
-        exit 1
-    fi
-    sleep 1
-done
+    for attempt in {1..60}; do
+        if curl -fsS "$url" >/dev/null 2>&1; then
+            echo "$name is healthy: $url"
+            return 0
+        fi
+        if ! kill -0 "$TOMEE_PID" 2>/dev/null; then
+            return 0
+        fi
+        sleep 2
+    done
+    echo "$name is not healthy yet; check $url and the logs." >&2
+}
+
+docker compose -f "$COMPOSE_FILE" up -d --wait postgres sqlserver oracle
+docker compose -f "$COMPOSE_FILE" run --rm --build database-migrations
 
 "$PROJECT_DIR/asset-management-service/deploy.sh"
-"$PROJECT_DIR/stock-market-service/deploy.sh"
 
-"$(brew --prefix tomcat)/bin/catalina" run >"$TOMCAT_LOG" 2>&1 &
-TOMCAT_PID=$!
+"$CATALINA_HOME/bin/catalina.sh" run >"$TOMEE_LOG" 2>&1 &
+TOMEE_PID=$!
 
-cd "$JETTY_BASE"
-java -jar "$JETTY_HOME/start.jar" \
-    jetty.http.port=8082 >"$JETTY_LOG" 2>&1 &
-JETTY_PID=$!
+wait_for_health "Asset management service" "http://localhost:$TOMCAT_PORT/health"
 
-echo "Tomcat: http://localhost:8081/assets"
-echo "Home:   http://localhost:8081/"
-echo "Jetty:  stock-market producer running on localhost:8082"
-echo "Kafka:  localhost:9092 (topic: stock-prices)"
-echo "Live market: http://localhost:8081/live-market"
-echo "Logs:   $TOMCAT_LOG and $JETTY_LOG"
-echo "Press Ctrl+C to stop both servers and Kafka."
+echo "Home:        http://localhost:$TOMCAT_PORT/"
+echo "Market:      http://localhost:$TOMCAT_PORT/market"
+echo "Assets:      http://localhost:$TOMCAT_PORT/assets"
+echo "Portfolios:  http://localhost:$TOMCAT_PORT/portfolios"
+echo "Health:      http://localhost:$TOMCAT_PORT/health"
+echo "PostgreSQL:  localhost:${POSTGRES_PORT:-5432} (database: stock_market)"
+echo "SQL Server:  localhost:${MSSQL_PORT:-1433} (database: stock_market)"
+echo "OracleDB:    localhost:${ORACLE_PORT:-1521} (service: FREEPDB1)"
+echo "Log:         $TOMEE_LOG"
+echo "Press Ctrl+C to stop TomEE and the containers."
 
 set +e
-wait -n -p EXITED_PID "$TOMCAT_PID" "$JETTY_PID"
+wait "$TOMEE_PID"
 EXIT_STATUS=$?
 set -e
 
-if [ "$EXITED_PID" = "$TOMCAT_PID" ]; then
-    EXITED_SERVICE="Tomcat"
-    EXITED_LOG="$TOMCAT_LOG"
-else
-    EXITED_SERVICE="Jetty"
-    EXITED_LOG="$JETTY_LOG"
-fi
-
-echo "$EXITED_SERVICE stopped unexpectedly (exit status $EXIT_STATUS)." >&2
-echo "Check $EXITED_LOG for the failure details." >&2
+echo "TomEE stopped unexpectedly (exit status $EXIT_STATUS)." >&2
+echo "Check $TOMEE_LOG for the failure details." >&2
 exit "$EXIT_STATUS"

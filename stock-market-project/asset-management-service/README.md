@@ -1,51 +1,57 @@
 # Asset management service
 
-This is a minimal Jakarta Servlet WAR for Tomcat 11.
+Apache TomEE Plus 10.2 WAR for users, portfolios, trading, and the web UI. It stores data in PostgreSQL
+(users), SQL Server (portfolios and cash), and Oracle (trade ledger).
+See the [project README](../README.md) for the architecture, API, and security model.
 
-## Run with the Homebrew Tomcat
+## Layout
 
-```bash
-cd /home/alex/sisteme-distribuite/stock-market-project/asset-management-service
-mvn clean package
-
-export CATALINA_HOME="$(brew --prefix tomcat)/libexec"
-export CATALINA_BASE="/home/alex/sisteme-distribuite/servere/tomcat-base"
-rm -rf "$CATALINA_BASE/webapps/ROOT" "$CATALINA_BASE/webapps/ROOT.war"
-cp target/asset-management-service.war "$CATALINA_BASE/webapps/ROOT.war"
-"$(brew --prefix tomcat)/bin/catalina" run
+```text
+src/main/java/com/example/asset/
+  application/   ApplicationLifecycle (session hardening), AppConfig (environment)
+  boundary/
+    http/        SecurityFilter, ApiServlet (error mapping), Json, SessionSupport, UnauthorizedException
+    page/        PageServlet: HTML pages /, /market, /assets, /portfolios
+    api/         JSON endpoints: /auth/login, /auth/register, /auth/logout, /api/session, /api/users,
+                 /api/portfolios, /api/trades, /api/market, /dashboard, /health
+  control/       AuthControl, UserControl, PortfolioControl, DashboardControl, HealthControl (@Stateless),
+                 TradingControl, MarketControl (@Singleton, fixed stock prices), ...
+    repository/  @Local repository interfaces, @Stateless JPA implementations (one EntityManager each),
+                 Database (@Singleton @Startup: configuration check and database health)
+  entity/        JPA entities (UserEntity, CredentialEntity, PortfolioEntity, TradeEntity) and
+                 records (User, Credential, Portfolio, Trade, TradeSide)
+src/main/resources/
+  META-INF/persistence.xml       persistence units postgres, sqlserver, oracle (OpenJPA)
+src/main/webapp/
+  auth.html                      public login and registration page
+  static/css/app.css             shared design system (light and dark)
+  static/js/app.js               shared helpers; one script per page
+  WEB-INF/views/*.jsp            pages, reachable only through PageServlet
+  WEB-INF/views/fragments/*.jspf shared head, header, and footer
+  WEB-INF/resources.xml          JTA data sources, configured from environment variables
+  WEB-INF/ejb-jar.xml            IllegalArgumentException and SecurityException as application exceptions
 ```
 
-Open the home page at <http://localhost:8081/>.
+The TomEE EJB container creates and wires the beans; servlets receive them with `@EJB`, and repositories
+receive their `EntityManager` with `@PersistenceContext`. The controls use bean-managed transactions and never
+start one, so every repository call runs in its own container-managed JTA transaction on a single database,
+and the controls compensate across databases. `NotFoundException`, `UnavailableException`,
+`IllegalArgumentException`, and `SecurityException` are application exceptions, so they reach `ApiServlet`
+unwrapped and keep their HTTP status codes; an `IllegalArgumentException` from a repository (for example a
+duplicate username) also rolls its transaction back.
 
-From there, open <http://localhost:8081/assets> to view available assets or
-<http://localhost:8081/live-market> to view the live market and manage the
-portfolio.
+## Build and deploy
 
-Open the live market at
-<http://localhost:8081/live-market>. It displays the
-latest stock prices received from Kafka and refreshes every five seconds.
-The page receives price changes through a live Server-Sent Events connection,
-so it updates when the asset-management service consumes a Kafka event.
-
-The live market starts with a $1,000.00 USD cash balance and no holdings.
-Search the Kafka-received market catalog and buy fractional shares. The
-Holdings can also be sold in full or in fractional quantities at the latest
-server-side Kafka price. The account is persisted in
-`asset-management-service/src/main/resources/data/account.json`. Override the
-location with
-`ACCOUNT_DATA_FILE`).
-
-The deploy script removes legacy context deployments and cached JSP output so
-Tomcat serves the current root deployment after application changes.
-
-The `/assets` servlet forwards the live portfolio data received from Kafka to
-the JSP at `src/main/webapp/WEB-INF/views/assets.jsp`. The JSP is under
-`WEB-INF`, so it can only be reached through the servlet.
-
-## Deploy
-
-From the project root:
+From `stock-market-project`:
 
 ```bash
 ./asset-management-service/deploy.sh
 ```
+
+This builds the module, then copies the WAR to
+`$SERVERS_DIR/tomee-base/webapps/ROOT.war`. Run the unit tests with
+`mvn -pl asset-management-service verify`.
+
+The service reads its configuration from environment variables; `run.sh` exports the values from
+`.env` before starting TomEE. The data sources in `WEB-INF/resources.xml` resolve them with
+`${NAME:-default}` placeholders.

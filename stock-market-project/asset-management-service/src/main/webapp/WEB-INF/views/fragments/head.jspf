@@ -1,0 +1,6 @@
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="${pageContext.request.contextPath}/static/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="${pageContext.request.contextPath}/static/css/app.css">
+<script src="${pageContext.request.contextPath}/static/js/app.js" defer></script>

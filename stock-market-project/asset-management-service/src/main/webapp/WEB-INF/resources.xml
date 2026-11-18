@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    JTA data sources for the persistence units in META-INF/persistence.xml. TomEE resolves ${NAME:-default}
+    from the environment (run.sh exports .env); passwords have no default. The drivers come from WEB-INF/lib.
+-->
+<resources>
+    <Resource id="PostgresDataSource" type="javax.sql.DataSource">
+        JdbcDriver = org.postgresql.Driver
+        JdbcUrl = ${POSTGRES_URL:-jdbc:postgresql://localhost:5432/stock_market}
+        UserName = ${POSTGRES_USER:-stock_app}
+        Password = ${POSTGRES_PASSWORD}
+        JtaManaged = true
+    </Resource>
+
+    <Resource id="SqlServerDataSource" type="javax.sql.DataSource">
+        JdbcDriver = com.microsoft.sqlserver.jdbc.SQLServerDriver
+        JdbcUrl = ${SQLSERVER_URL:-jdbc:sqlserver://localhost:1433;databaseName=stock_market;encrypt=false}
+        UserName = ${SQLSERVER_USER:-stock_app}
+        Password = ${SQLSERVER_PASSWORD}
+        JtaManaged = true
+    </Resource>
+
+    <!-- ORACLE_USER is the former name of ORACLE_APP_USER and is still accepted. -->
+    <Resource id="OracleDataSource" type="javax.sql.DataSource">
+        JdbcDriver = oracle.jdbc.OracleDriver
+        JdbcUrl = ${ORACLE_URL:-jdbc:oracle:thin:@localhost:1521/FREEPDB1}
+        UserName = ${ORACLE_APP_USER:-${ORACLE_USER:-stock_app}}
+        Password = ${ORACLE_APP_PASSWORD}
+        JtaManaged = true
+    </Resource>
+</resources>
