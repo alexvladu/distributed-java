@@ -67,3 +67,18 @@ users → portfolios: one-to-many, logical across databases.
 portfolios.user_id refers to users.user_id, but no SQL foreign key exists because PostgreSQL and SQL Server are separate.
 portfolios → trades: one-to-many, logical across databases.
 trades.portfolio_id refers to portfolios.portfolio_id, but no SQL foreign key exists because SQL Server and Oracle are separate.
+
+
+## Database operations:
+
+docker compose exec postgres psql -U stock_app -d stock_market \
+  -c "SELECT * FROM flyway_schema_history;"
+
+echo "SELECT trade_id, portfolio_id, symbol, side, quantity FROM trades;" |
+docker compose exec -T oracle sqlplus -S \
+  stock_app/stock_app_password@//localhost:1521/FREEPDB1
+
+docker compose exec sqlserver /opt/mssql-tools18/bin/sqlcmd \
+  -S localhost -U stock_app -P "StockMarket_App_123!" -C \
+  -d stock_market \
+  -Q "SELECT portfolio_id, user_id, portfolio_name, cash_balance, created_at FROM portfolios;"
