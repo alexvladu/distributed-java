@@ -6,7 +6,7 @@ import java.util.List;
 import com.example.asset.boundary.http.ApiServlet;
 import com.example.asset.boundary.http.Json;
 import com.example.asset.control.MarketControl;
-import com.example.asset.control.NotFoundException;
+import com.example.asset.error.NotFoundException;
 
 import jakarta.ejb.EJB;
 import jakarta.servlet.annotation.WebServlet;

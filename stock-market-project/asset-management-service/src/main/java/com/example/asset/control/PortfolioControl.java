@@ -7,6 +7,7 @@ import java.util.List;
 import com.example.asset.control.repository.PortfolioRepository;
 import com.example.asset.control.repository.TradeRepository;
 import com.example.asset.entity.portfolio.Portfolio;
+import com.example.asset.error.NotFoundException;
 
 import jakarta.ejb.EJB;
 import jakarta.ejb.Stateless;
@@ -26,14 +27,6 @@ public class PortfolioControl {
     private PortfolioRepository portfolios;
     @EJB
     private TradeRepository trades;
-
-    public PortfolioControl() {
-    }
-
-    PortfolioControl(PortfolioRepository portfolios, TradeRepository trades) {
-        this.portfolios = portfolios;
-        this.trades = trades;
-    }
 
     public List<Portfolio> list(long userId) {
         return portfolios.findByUserId(userId);

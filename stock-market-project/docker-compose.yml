@@ -36,7 +36,8 @@ services:
       retries: 30
 
   oracle:
-    image: gvenzl/oracle-free:23-slim-faststart
+    # Pinned: a database volume only works with the Oracle version that created it.
+    image: gvenzl/oracle-free:23.26.4-slim-faststart
     container_name: stock-market-oracle
     environment:
       ORACLE_PASSWORD: ${ORACLE_PASSWORD:-StockMarket_Oracle_123!}

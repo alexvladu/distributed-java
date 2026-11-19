@@ -23,16 +23,19 @@ flowchart LR
 
 The asset-management service follows Boundary–Control–Entity, with the beans managed by the TomEE EJB container:
 
-- `application` – session hardening listener and environment configuration (`AppConfig`).
+- `application` – session hardening listener.
 - `boundary` – one package per channel: `http` (security filter and shared HTTP helpers), `page` (HTML pages),
   and `api` (JSON endpoints, beans injected with `@EJB`).
 - `control` – business rules as `@Stateless` beans; `TradingControl` is a `@Singleton` because it shares
   per-portfolio locks, and `MarketControl` is a `@Singleton` holding the tradable stocks and their fixed prices.
 - `control.repository` – `@Local` repository interfaces and their `@Stateless` JPA implementations
   (`JpaUserRepository`, `JpaUserCredentialRepository`, `JpaPortfolioRepository`, `JpaTradeRepository`), each
-  using the `EntityManager` of one persistence unit; `Database` runs the health checks.
+  using the `EntityManager` of one persistence unit.
 - `entity` – JPA entities (`UserEntity`, `CredentialEntity`, `PortfolioEntity`, `TradeEntity`) and the
-  immutable records the controls and the API work with.
+  immutable records the controls and the API work with, including the read models `AccountSnapshot`,
+  `HoldingView`, and `StockQuote`.
+- `error` – business exceptions shared by the controls and the API (`NotFoundException` → 404,
+  `UnavailableException` → 503).
 
 ## Persistence (JPA)
 
@@ -65,7 +68,7 @@ Requirements: JDK 21, Maven, Docker, and Homebrew `tomee-plus`.
 2. starts PostgreSQL, SQL Server, and Oracle, and waits until they are healthy;
 3. applies the Flyway migrations;
 4. builds the WAR, deploys it as `ROOT.war`, and starts TomEE Plus;
-5. waits for `/health` and prints the URLs.
+5. prints the URLs; the pages answer once TomEE has deployed the WAR (see the log).
 
 The TomEE Plus base directory defaults to `<repository>/servere/tomee-base` and is created if missing.
 Set `SERVERS_DIR` (in `.env` or the shell) to use another location. Press `Ctrl+C` to stop everything, or
@@ -118,7 +121,6 @@ change data must send `X-Requested-With: XMLHttpRequest`; the browser client doe
 | GET, PUT, DELETE | `/api/trades/{id}` | Read, correct `{quantity}`, or void a trade |
 | GET | `/api/market`, `/api/market/{symbol}` | Stocks and their prices |
 | GET | `/dashboard` | User, portfolios, and trades joined across the three databases |
-| GET | `/health` | Database status (public; 503 when a database is unreachable) |
 
 ```bash
 curl -c jar -H 'Content-Type: application/json' -H 'X-Requested-With: XMLHttpRequest' \
@@ -160,18 +162,8 @@ curl -b jar -H 'Content-Type: application/json' -H 'X-Requested-With: XMLHttpReq
 | `SERVERS_DIR` | `<repository>/servere` | scripts |
 
 The database variables are read by the TomEE data sources in `WEB-INF/resources.xml`
-(`${NAME:-default}` placeholders). The asset service refuses to start if a password is missing and names it
-in the TomEE log.
-
-## Tests
-
-```bash
-mvn verify
-```
-
-Unit tests cover trading and compensation, holdings math, the stock catalogue, authentication,
-portfolio ownership, configuration, CSRF checks, and database error mapping. The deploy script skips tests
-to keep `run.sh` fast, so run `mvn verify` before committing.
+(`${NAME:-default}` placeholders). If a password is missing, the database connections fail and the TomEE log
+shows the error.
 
 ## Database layout and reset
 
@@ -187,3 +179,6 @@ docker compose down -v
 docker compose up -d --wait postgres sqlserver oracle
 docker compose run --rm --build database-migrations
 ```
+
+If the Oracle migration fails with `ORA-01804: failure to initialize timezone information`, the
+`oracle-data` volume was created by a different Oracle image version; reset the data as shown above.

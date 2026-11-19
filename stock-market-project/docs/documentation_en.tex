@@ -147,23 +147,30 @@ views; JSON servlets under \code{/api} and \code{/auth};
 \code{SecurityFilter}\\
 Control & \code{@Stateless} and \code{@Singleton} EJBs & \code{AuthControl},
 \code{UserControl}, \code{PortfolioControl}, \code{TradingControl},
-\code{MarketControl}, \code{DashboardControl}, \code{HealthControl}\\
+\code{MarketControl}, \code{DashboardControl}\\
 Repository & \code{@Stateless} EJBs with a JPA \code{EntityManager} &
 \code{JpaUserRepository}, \code{JpaUserCredentialRepository},
 \code{JpaPortfolioRepository}, \code{JpaTradeRepository}\\
 Entity & JPA \code{@Entity} classes and Java records & \code{UserEntity},
 \code{CredentialEntity}, \code{PortfolioEntity}, \code{TradeEntity}; records
-\code{User}, \code{Credential}, \code{Portfolio}, \code{Trade}\\
+\code{User}, \code{Credential}, \code{Portfolio}, \code{Trade}; read models
+\code{AccountSnapshot}, \code{HoldingView}, \code{StockQuote}\\
 \bottomrule
 \end{tabularx}
 \caption{Layers of the asset-management service}
 \label{tab:layers}
 \end{table}
 
+The layers correspond to the packages \code{boundary}, \code{control},
+\code{control.repository}, and \code{entity} under \code{com.example.asset}.
+The business exceptions \code{NotFoundException} and
+\code{UnavailableException} are in a separate \code{error} package, because
+both the controls, which throw them, and \class{ApiServlet}, which maps them
+to HTTP status codes, depend on them.
+
 At startup, TomEE creates the three JTA data sources declared in
 \code{WEB-INF/resources.xml} and the three persistence units declared in
-\code{META-INF/persistence.xml}; the \class{Database} singleton stops the
-deployment if a database password is missing. \class{MarketControl} holds the
+\code{META-INF/persistence.xml}. \class{MarketControl} holds the
 five tradable stocks (AAPL, AMZN, MSFT, NVDA, and TSLA) and their fixed
 prices.
 
@@ -329,8 +336,8 @@ another terminal, use:
 ./stop.sh
 \end{verbatim}
 
-This releases port 8081; \code{Ctrl+C} also stops TomEE and the Docker
-Compose stack.
+This stops the Docker Compose stack and TomEE; \code{Ctrl+C} in the
+\code{run.sh} terminal does the same.
 
 \subsection{HTTP interface}
 
@@ -367,8 +374,6 @@ GET & \code{/api/market}, \code{/api/market/\{symbol\}} & Stocks and their
 prices.\\
 GET & \code{/dashboard} & User, portfolios, and trades joined across the three
 databases.\\
-GET & \code{/health} & Database status (public; 503 when a database is
-unreachable).\\
 \bottomrule
 \end{longtable}
 
@@ -414,6 +419,28 @@ changeQuantity(BigDecimal quantity)}; \code{Trade toTrade()}.\\
 \bottomrule
 \end{longtable}
 
+The \code{entity} package also holds read models that have no table of their
+own; the controls compute them and the JSON API returns them.
+
+\begin{longtable}{>{\raggedright\arraybackslash}p{3.2cm}
+                  >{\raggedright\arraybackslash}p{10.3cm}}
+\toprule
+\textbf{Record} & \textbf{Fields}\\
+\midrule
+\endhead
+\class{StockQuote} & \code{String symbol}, \code{String name},
+\code{BigDecimal price}: a tradable stock.\\
+\class{HoldingView} & \code{symbol}, \code{name}, \code{quantity},
+\code{averageCost}, \code{costBasis}, \code{price}, \code{marketValue},
+\code{unrealizedProfit}: an open position valued at the market price; the
+price fields are \code{null} when the symbol is no longer traded.\\
+\class{AccountSnapshot} & \code{portfolioId}, \code{portfolioName},
+\code{cashBalance}, \code{investedValue}, \code{costBasis},
+\code{unrealizedProfit}, \code{totalValue}, \code{List<HoldingView>
+holdings}: one portfolio with its cash and valued holdings.\\
+\bottomrule
+\end{longtable}
+
 \subsection{Repositories}
 
 The repositories are \code{@Local} interfaces implemented by
@@ -453,10 +480,6 @@ findById(long id)}, \code{List<Trade> findByPortfolioId(long portfolioId)}
 (newest first), \code{Optional<Trade> updateQuantity(long id, BigDecimal
 quantity)}, \code{void delete(long id)}, and \code{void
 deleteByPortfolioId(long portfolioId)} (a JPQL bulk delete).
-
-\item[\class{Database}] A \code{@Singleton @Startup} EJB with one
-\code{EntityManager} per unit. \code{Map<String, Boolean> ping()} runs a
-trivial native query on each database for the health check.
 \end{description}
 
 \subsection{Controls and servlets}
@@ -490,17 +513,14 @@ userId, long portfolioId, String symbol, String side, BigDecimal quantity)},
 insufficient holdings, and \code{UnavailableException} when the Oracle write
 fails and the cash movement had to be reversed.
 
-\item[\class{MarketControl}] A \code{@Singleton} EJB holding the five stocks
-as \class{StockQuote} records (\code{String symbol}, \code{String name},
-\code{BigDecimal price}). \code{Optional<StockQuote> quote(String symbol)}
-finds a stock case-insensitively, and \code{List<StockQuote> quotes()}
-returns all of them sorted by symbol.
+\item[\class{MarketControl}] A \code{@Singleton} EJB that holds the five
+tradable stocks as \class{StockQuote} records. Its method
+\code{Optional<StockQuote> quote(String symbol)} finds a stock
+case-insensitively, and \code{List<StockQuote> quotes()} returns all of them
+sorted by symbol.
 
 \item[\class{DashboardControl}] \code{Dashboard load(long userId)} joins the
 user (PostgreSQL), its portfolios (SQL Server), and their trades (OracleDB).
-
-\item[\class{HealthControl}] \code{Health check()} reports each database as
-\code{UP} or \code{DOWN} using \code{Database.ping()}.
 
 \item[\class{PageServlet}] Forwards \code{/}, \code{/market},
 \code{/assets}, and \code{/portfolios} to the JSP views under
@@ -509,8 +529,8 @@ user (PostgreSQL), its portfolios (SQL Server), and their trades (OracleDB).
 \item[\class{ApiServlet}] The base class of the JSON servlets
 (\class{RegisterServlet}, \class{LoginServlet}, \class{LogoutServlet},
 \class{SessionServlet}, \class{UserServlet}, \class{PortfolioServlet},
-\class{TradeServlet}, \class{MarketServlet}, \class{DashboardServlet},
-\class{HealthServlet}). It maps \code{IllegalArgumentException} to 400,
+\class{TradeServlet}, \class{MarketServlet}, and \class{DashboardServlet}).
+It maps \code{IllegalArgumentException} to 400,
 \code{UnauthorizedException} to 401, \code{SecurityException} to 403,
 \code{NotFoundException} to 404, and \code{UnavailableException} to 503.
 The HTTP methods can throw \code{IOException}.
@@ -544,9 +564,9 @@ From the project directory, run:
 ./run.sh
 \end{verbatim}
 
-The script starts the infrastructure, deploys both services, and starts the
-servers. The application is available at \url{http://localhost:8081/}; stop
-it with \code{Ctrl+C} or \code{./stop.sh}.
+The script starts the databases, applies the migrations, deploys the WAR,
+and starts TomEE. The application is available at
+\url{http://localhost:8081/}; stop it with \code{Ctrl+C} or \code{./stop.sh}.
 
 \subsection{Creating an account and trading}
 

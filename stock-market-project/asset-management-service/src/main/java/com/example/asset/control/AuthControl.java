@@ -38,16 +38,6 @@ public class AuthControl {
     private final SecureRandom random = new SecureRandom();
     private String dummyHash;
 
-    public AuthControl() {
-    }
-
-    AuthControl(UserRepository users, UserCredentialRepository credentials, PortfolioControl portfolios) {
-        this.users = users;
-        this.credentials = credentials;
-        this.portfolios = portfolios;
-        init();
-    }
-
     @PostConstruct
     void init() {
         dummyHash = hash("timing-equalization-only");

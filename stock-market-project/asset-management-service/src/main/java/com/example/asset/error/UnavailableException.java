@@ -1,4 +1,4 @@
-package com.example.asset.control;
+package com.example.asset.error;
 
 import jakarta.ejb.ApplicationException;
 

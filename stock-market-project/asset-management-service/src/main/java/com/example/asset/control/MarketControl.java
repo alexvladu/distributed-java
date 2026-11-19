@@ -7,6 +7,8 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.TreeMap;
 
+import com.example.asset.entity.market.StockQuote;
+
 import jakarta.ejb.ConcurrencyManagement;
 import jakarta.ejb.ConcurrencyManagementType;
 import jakarta.ejb.Singleton;
@@ -28,11 +30,7 @@ public class MarketControl {
     private final Map<String, StockQuote> quotes = new TreeMap<>();
 
     public MarketControl() {
-        this(CATALOGUE);
-    }
-
-    MarketControl(List<StockQuote> catalogue) {
-        catalogue.forEach(quote -> quotes.put(quote.symbol(), quote));
+        CATALOGUE.forEach(quote -> quotes.put(quote.symbol(), quote));
     }
 
     public Optional<StockQuote> quote(String symbol) {

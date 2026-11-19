@@ -8,18 +8,19 @@ See the [project README](../README.md) for the architecture, API, and security m
 
 ```text
 src/main/java/com/example/asset/
-  application/   ApplicationLifecycle (session hardening), AppConfig (environment)
+  application/   ApplicationLifecycle (session hardening)
   boundary/
     http/        SecurityFilter, ApiServlet (error mapping), Json, SessionSupport, UnauthorizedException
     page/        PageServlet: HTML pages /, /market, /assets, /portfolios
     api/         JSON endpoints: /auth/login, /auth/register, /auth/logout, /api/session, /api/users,
-                 /api/portfolios, /api/trades, /api/market, /dashboard, /health
-  control/       AuthControl, UserControl, PortfolioControl, DashboardControl, HealthControl (@Stateless),
+                 /api/portfolios, /api/trades, /api/market, /dashboard
+  control/       AuthControl, UserControl, PortfolioControl, DashboardControl (@Stateless),
                  TradingControl, MarketControl (@Singleton, fixed stock prices), ...
-    repository/  @Local repository interfaces, @Stateless JPA implementations (one EntityManager each),
-                 Database (@Singleton @Startup: configuration check and database health)
+    repository/  @Local repository interfaces, @Stateless JPA implementations (one EntityManager each)
   entity/        JPA entities (UserEntity, CredentialEntity, PortfolioEntity, TradeEntity) and
-                 records (User, Credential, Portfolio, Trade, TradeSide)
+                 records (User, Credential, Portfolio, AccountSnapshot, HoldingView, Trade, TradeSide,
+                 StockQuote)
+  error/         NotFoundException, UnavailableException (thrown by controls, mapped by ApiServlet)
 src/main/resources/
   META-INF/persistence.xml       persistence units postgres, sqlserver, oracle (OpenJPA)
 src/main/webapp/
@@ -49,8 +50,7 @@ From `stock-market-project`:
 ```
 
 This builds the module, then copies the WAR to
-`$SERVERS_DIR/tomee-base/webapps/ROOT.war`. Run the unit tests with
-`mvn -pl asset-management-service verify`.
+`$SERVERS_DIR/tomee-base/webapps/ROOT.war`.
 
 The service reads its configuration from environment variables; `run.sh` exports the values from
 `.env` before starting TomEE. The data sources in `WEB-INF/resources.xml` resolve them with

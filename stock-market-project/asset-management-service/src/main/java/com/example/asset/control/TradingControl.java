@@ -12,9 +12,14 @@ import java.util.regex.Pattern;
 
 import com.example.asset.control.repository.PortfolioRepository;
 import com.example.asset.control.repository.TradeRepository;
+import com.example.asset.entity.market.StockQuote;
+import com.example.asset.entity.portfolio.AccountSnapshot;
+import com.example.asset.entity.portfolio.HoldingView;
 import com.example.asset.entity.portfolio.Portfolio;
 import com.example.asset.entity.trade.Trade;
 import com.example.asset.entity.trade.TradeSide;
+import com.example.asset.error.NotFoundException;
+import com.example.asset.error.UnavailableException;
 
 import jakarta.ejb.ConcurrencyManagement;
 import jakarta.ejb.ConcurrencyManagementType;
@@ -55,15 +60,6 @@ public class TradingControl {
         for (int index = 0; index < LOCK_STRIPES; index++) {
             locks[index] = new ReentrantLock();
         }
-    }
-
-    TradingControl(PortfolioControl portfolioControl, PortfolioRepository portfolios,
-            TradeRepository trades, MarketControl market) {
-        this();
-        this.portfolioControl = portfolioControl;
-        this.portfolios = portfolios;
-        this.trades = trades;
-        this.market = market;
     }
 
     public AccountSnapshot account(long userId, long portfolioId) {

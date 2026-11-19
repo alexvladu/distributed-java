@@ -7,7 +7,7 @@ import java.util.List;
 import com.example.asset.boundary.http.ApiServlet;
 import com.example.asset.boundary.http.Json;
 import com.example.asset.boundary.http.SessionSupport;
-import com.example.asset.control.NotFoundException;
+import com.example.asset.error.NotFoundException;
 import com.example.asset.control.TradingControl;
 
 import jakarta.ejb.EJB;

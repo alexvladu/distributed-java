@@ -3,6 +3,7 @@ package com.example.asset.control;
 import com.example.asset.control.repository.UserRepository;
 import com.example.asset.entity.portfolio.Portfolio;
 import com.example.asset.entity.user.User;
+import com.example.asset.error.NotFoundException;
 
 import jakarta.ejb.EJB;
 import jakarta.ejb.Stateless;
@@ -16,14 +17,6 @@ public class UserControl {
     private UserRepository users;
     @EJB
     private PortfolioControl portfolios;
-
-    public UserControl() {
-    }
-
-    UserControl(UserRepository users, PortfolioControl portfolios) {
-        this.users = users;
-        this.portfolios = portfolios;
-    }
 
     public User get(long userId) {
         return users.findById(userId).orElseThrow(() -> new NotFoundException("User not found"));

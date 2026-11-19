@@ -5,8 +5,8 @@ import java.lang.System.Logger.Level;
 import java.util.Arrays;
 import java.util.List;
 
-import com.example.asset.control.NotFoundException;
-import com.example.asset.control.UnavailableException;
+import com.example.asset.error.NotFoundException;
+import com.example.asset.error.UnavailableException;
 
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
