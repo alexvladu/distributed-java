@@ -4,6 +4,7 @@ Apache TomEE Plus 10.2 WAR for users, portfolios, trading, and the web UI. It st
 (users), SQL Server (portfolios and cash), and Oracle (trade ledger).
 See the [project README](../README.md) for the architecture, API, and security model.
 
+
 ## Layout
 
 ```text
@@ -55,3 +56,14 @@ This builds the module, then copies the WAR to
 The service reads its configuration from environment variables; `run.sh` exports the values from
 `.env` before starting TomEE. The data sources in `WEB-INF/resources.xml` resolve them with
 `${NAME:-default}` placeholders.
+
+
+## Database relationships
+
+users → user_credentials: one-to-one.
+user_credentials.user_id is the primary key and foreign key to users.user_id.
+Deleting a user also deletes its credentials.
+users → portfolios: one-to-many, logical across databases.
+portfolios.user_id refers to users.user_id, but no SQL foreign key exists because PostgreSQL and SQL Server are separate.
+portfolios → trades: one-to-many, logical across databases.
+trades.portfolio_id refers to portfolios.portfolio_id, but no SQL foreign key exists because SQL Server and Oracle are separate.
